@@ -24,6 +24,22 @@ If you use IRAF-SLAM in an academic work, please cite:
      }
 
 # 2. Prerequisites
+Install all the python dependencies for video understanding using pip:
+```
+pip install -r requirements.txt
+```
+Run following command to run reinforcement learning:
+```
+pip install -r DRL/requirements.txt
+```
+# Checkpoints
+## Video understanding
+Download both [action recognition checkpoint](https://drive.google.com/file/d/1oZpapQmfzchaC9-GR4uIrawlye-kXaVf/view?usp=drive_link) and [hand detection](https://drive.google.com/open?id=1H2tWsZkS7tDF8q1-jdjx6V9XrK25EDbE">faster_rcnn_1_8_132028.pth) and save them as follows:
 
+Action recognition checkpoint to `/Human-to-Robot-Interaction/mmaction2/pretrained_file_and_checkpoint`
+Hand detection checkpoint to `/Human-to-Robot-Interaction/video_understanding_checkpoint/res101_handobj_100K/pascal_voc`
 
-# 3. Building  and examples
+## Reinforcement learning
+Download...
+
+# 3. Building and examples
