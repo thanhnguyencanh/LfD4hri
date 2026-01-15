@@ -29,7 +29,7 @@ class ImitationLearning(gym.Env):
         self.home_joints = (-np.pi / 2, -np.pi / 15, -2*np.pi / 9, np.pi, 2*np.pi / 7, 0)  # Initialize angles.
         self.ee_link_id = 6  # Link ID of UR5 end effector.
         self.suction = None
-        self.robot = None
+        self.robot = "uf850"
         self.action_space = Box(low=-1, high=1, shape=(7,), dtype=np.float32)  # rad/s
         self.observation_space = Box(low=-np.inf, high=np.inf, shape=(37,), dtype=np.float32)
         self.agent_cams = camera.Camera.CONFIG

@@ -64,7 +64,7 @@ if __name__ == "__main__":
     parser.add_argument("--policy_name", default="td3")  # Policy name
     parser.add_argument("--env_name", default="ImitationLearning-v1")  # environment name
     parser.add_argument("--warmup", default=20000, type=int)  # purely random action
-    parser.add_argument("--robot", default="ur5e", type=str, required=True)  # robot [ur5e, uf850]
+    parser.add_argument("--robot", default="uf850", type=str, required=True)  # robot [ur5e, uf850]
     parser.add_argument("--action", default=0, type=int, required=True)  # training action
     parser.add_argument("--seed", default=42, type=int)
     parser.add_argument("--log_path", default='reward_log', type=str)  # reward log path
