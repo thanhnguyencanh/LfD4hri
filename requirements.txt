@@ -5,10 +5,10 @@ peakutils
 cython
 cffi
 moviepy
-torch==1.12.1 
-torchvision==0.13.1 
-torchaudio==0.12.1
-opencv-python
+torch==2.7.0
+torchvision==0.22.0
+torchaudio==2.7.0
+opencv-python==4.3.0.36
 msgpack
 matplotlib
 pyyaml
@@ -19,3 +19,9 @@ mmaction2==1.2.0
 mmcv-lite==2.1.0
 pandas
 pascal_voc_writer
+transforms3d
+pybullet==3.2.7
+gym==0.25.1
+gymnasium=1.1.1
+imageio==2.37.0
+numpy==1.26.4
