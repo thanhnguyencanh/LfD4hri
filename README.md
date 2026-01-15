@@ -43,6 +43,7 @@ Hand detection checkpoint to `/Human-to-Robot-Interaction/video_understanding_ch
 
 ## Reinforcement Learning
 The system supports two robot arms, **UR5e** and **UF850**, each with four discrete action modes (```0: reach, 1: pick, 2: move, 3: put```)
+We recommend adjusting the success threshold—defined as the acceptable positional error by modifying `threshold_1` in the following configuration file:
 ### Training
 
 To train a reinforcement learning policy, run:
