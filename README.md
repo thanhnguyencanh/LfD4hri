@@ -8,20 +8,22 @@ LfD4hri is a novel “Human-to-Robot” imitation learning pipeline that enables
 
 
 
-# 1. License
+## 1. Project Structure
 
-
-If you use IRAF-SLAM in an academic work, please cite:
-  
-    @article{canh2026human,
-      title={Human-to-Robot Interaction: Learning from Video Demonstration for Robot Imitation},
-      author={Thanh Nguyen Canh, Thanh Tuan Tran, Xiem HoangVan, and Nak Young Chong},
-      journal={}, 
-      volume={},
-      number={},
-      pages={},
-      year={2025}
-     }
+    LfD4HRI/
+    │
+    ├── DRL/
+    │   ├── assets/                 Objects and robot configuration files
+    │   ├── env/                    Reinforcement learning environments
+    │   ├── models/                 RL models (e.g., TD3, SAC, ...)
+    │   ├── reward/                 Reward function definitions
+    │   └── train_td3.py            Main RL training code
+    │
+    ├── LLaVA/                      VLMs for object identification
+    ├── video_keyframes_detector/   Video keyframe extraction
+    ├── mmaction2/                  Action recognition framework
+    ├── utils/                      Utility functions (overlap, blur, ...)
+    └── demo.py                     Video Understanding main code
 
 # 2. Prerequisites
 Install all the python dependencies for video understanding using pip:
@@ -39,7 +41,32 @@ Download both [action recognition checkpoint](https://drive.google.com/file/d/1o
 Action recognition checkpoint to `/Human-to-Robot-Interaction/mmaction2/pretrained_file_and_checkpoint`
 Hand detection checkpoint to `/Human-to-Robot-Interaction/video_understanding_checkpoint/res101_handobj_100K/pascal_voc`
 
-## Reinforcement learning
-Download...
+## Reinforcement Learning
+The system supports two robot arms, **UR5e** and **UF850**, each with four discrete action modes (reach, pick, move, put)
+### Training
+
+To train a reinforcement learning policy, run:
+```bash
+cd DRL
+python3 train_td3.py --action {0,1,2,3} --robot {ur5e,uf850}
+```
+Note: Select only one value for each argument from the options listed above.
+Starting a new training will automatically reset all existing checkpoints, logs, and related training artifacts.
 
 # 3. Building and examples
+
+
+License
+
+
+If you use IRAF-SLAM in an academic work, please cite:
+  
+    @article{canh2026human,
+      title={Human-to-Robot Interaction: Learning from Video Demonstration for Robot Imitation},
+      author={Thanh Nguyen Canh, Thanh Tuan Tran, Xiem HoangVan, and Nak Young Chong},
+      journal={}, 
+      volume={},
+      number={},
+      pages={},
+      year={2025}
+     }
