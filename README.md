@@ -26,20 +26,27 @@ LfD4hri is a novel “Human-to-Robot” imitation learning pipeline that enables
     └── demo.py                     Video Understanding main code
 
 # 2. Prerequisites
-Install all the python dependencies for video understanding using pip:
+```
+conda create --name lfd4hri python=3.11
+conda activate lfd4hri
+cd LfD4hri
+```
+Install all the python dependencies for video understanding and robot imitation:
 ```
 pip install -r requirements.txt
 ```
-Run following command to run reinforcement learning:
-```
-pip install -r DRL/requirements.txt
-```
 # Checkpoints
 ## Video understanding
-Download both [action recognition checkpoint](https://drive.google.com/file/d/1oZpapQmfzchaC9-GR4uIrawlye-kXaVf/view?usp=drive_link) and [hand detection](https://drive.google.com/open?id=1H2tWsZkS7tDF8q1-jdjx6V9XrK25EDbE">faster_rcnn_1_8_132028.pth) and save them as follows:
+1. Download [action recognition checkpoint](https://drive.google.com/file/d/1oZpapQmfzchaC9-GR4uIrawlye-kXaVf/view?usp=drive_link) and save it as follows:
+```
+LfD4hri/mmaction2/pretrained_file_and_checkpoint
+```
 
-Action recognition checkpoint to `/Human-to-Robot-Interaction/mmaction2/pretrained_file_and_checkpoint`
-Hand detection checkpoint to `/Human-to-Robot-Interaction/video_understanding_checkpoint/res101_handobj_100K/pascal_voc`
+1. Download [hand detection](https://drive.google.com/open?id=1H2tWsZkS7tDF8q1-jdjx6V9XrK25EDbE">faster_rcnn_1_8_132028.pth) and save it as follows:
+
+```
+LfD4hri/video_understanding_checkpoint/res101_handobj_100K/pascal_voc
+```
 
 ## Reinforcement Learning
 The system supports two robot arms, **UR5e** and **UF850**, each with four discrete action modes (```0: reach, 1: pick, 2: move, 3: put```)

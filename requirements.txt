@@ -8,7 +8,7 @@ moviepy
 torch==2.7.0
 torchvision==0.22.0
 torchaudio==2.7.0
-opencv-python==4.3.0.36
+opencv-python
 msgpack
 matplotlib
 pyyaml
@@ -22,6 +22,6 @@ pascal_voc_writer
 transforms3d
 pybullet==3.2.7
 gym==0.25.1
-gymnasium=1.1.1
+gymnasium==1.1.1
 imageio==2.37.0
 numpy==1.26.4
