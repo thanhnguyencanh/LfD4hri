@@ -10,3 +10,5 @@ tensorboard
 numpy==1.26.4
 moviepy
 opencv-python==4.3.0.36
+pillow
+tqdm
