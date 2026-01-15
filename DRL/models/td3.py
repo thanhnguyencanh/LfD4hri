@@ -8,10 +8,10 @@ from config import *
 import os
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def path_init(file_path):
-    dir_path = os.path.dirname(file_path)
-    # if os.path.isdir(dir_path):
-    #     shutil.rmtree(dir_path)
+def path_init(dir_path):
+    # dir_path = os.path.dirname(file_path)
+    if os.path.isdir(dir_path):
+        shutil.rmtree(dir_path)
     os.makedirs(dir_path, exist_ok=True)
 
 def weights_init(m):
@@ -20,19 +20,14 @@ def weights_init(m):
         torch.nn.init.constant_(m.bias, 0.0)
 
 class Actor(nn.Module):
-    def __init__(self, state_dim, action_dim=7, max_action=1, lr=1e-4,
-                 name='actor', chkpt_dir='ckpt/td3'):
+    def __init__(self, state_dim, action_dim=7, max_action=1, lr=1e-4):
         super(Actor, self).__init__()
-        self.checkpoint_dir = chkpt_dir
-        self.checkpoint_file = os.path.join(self.checkpoint_dir, name + '_td3')
-
         self.l1 = nn.Linear(state_dim, 512)
         self.l2 = nn.Linear(512, 512)
         self.l3 = nn.Linear(512, action_dim)
         self.max_action = max_action
         self.optimizer = Adam(self.parameters(), lr=lr)
         self.apply(weights_init)
-        path_init(self.checkpoint_file)
 
     def forward(self, x):
         x = F.relu(self.l1(x))
@@ -40,18 +35,9 @@ class Actor(nn.Module):
         joint_action = self.max_action * torch.tanh(self.l3(x))
         return joint_action
 
-    def save_checkpoint(self):
-        torch.save(self.state_dict(), self.checkpoint_file)
-
-    def load_checkpoint(self):
-        self.load_state_dict(torch.load(self.checkpoint_file))
-
 class Critic(nn.Module):
-    def __init__(self, state_dim, action_dim=7, lr=1e-4,
-                 name='critic', chkpt_dir='ckpt/td3'):
+    def __init__(self, state_dim, action_dim=7, lr=1e-4):
         super(Critic, self).__init__()
-        self.checkpoint_dir = chkpt_dir
-        self.checkpoint_file = os.path.join(self.checkpoint_dir, name + '_td3')
 
         input_dim = state_dim + action_dim
         self.l1 = nn.Linear(input_dim, 512)
@@ -64,7 +50,6 @@ class Critic(nn.Module):
 
         self.optimizer = Adam(self.parameters(), lr=lr)
         self.apply(weights_init)
-        path_init(self.checkpoint_file)
 
     def forward(self, x, u):
         xu = torch.cat([x, u], -1)
@@ -85,21 +70,15 @@ class Critic(nn.Module):
         x1 = self.l3(x1)
         return x1
 
-    def save_checkpoint(self):
-        torch.save(self.state_dict(), self.checkpoint_file)
-
-    def load_checkpoint(self):
-        self.load_state_dict(torch.load(self.checkpoint_file))
-
 class Agent(object):
     def __init__(self, state_dim, action_dim, max_action=1, lr=1e-4, warmup=20000, writer=None,
                  discount=0.99, tau=0.001, policy_noise=0.2, noise_clip=0.2, policy_freq=2, normalizer=None,
                  chkpt_dir=None):
-        self.actor = Actor(state_dim, action_dim, max_action, lr=lr, chkpt_dir=chkpt_dir).to(device)
-        self.actor_target = Actor(state_dim, action_dim, max_action, lr=lr, chkpt_dir=chkpt_dir).to(device)
+        self.actor = Actor(state_dim, action_dim, max_action, lr=lr).to(device)
+        self.actor_target = Actor(state_dim, action_dim, max_action, lr=lr).to(device)
         self.actor_target.load_state_dict(self.actor.state_dict())
-        self.critic = Critic(state_dim, action_dim, lr=lr, chkpt_dir=chkpt_dir).to(device)
-        self.critic_target = Critic(state_dim, action_dim, lr=lr, chkpt_dir=chkpt_dir).to(device)
+        self.critic = Critic(state_dim, action_dim, lr=lr).to(device)
+        self.critic_target = Critic(state_dim, action_dim, lr=lr).to(device)
         self.critic_target.load_state_dict(self.critic.state_dict())
         self.warmup = warmup
         self.discount = discount
@@ -113,6 +92,9 @@ class Agent(object):
         self.writer = writer
         self.seed = 0
         self.normalizer = normalizer
+        self.checkpoint_dir = chkpt_dir
+        torch.manual_seed(42)
+        path_init(self.checkpoint_dir)
 
     def choose_action(self, state, noise_scale=0.5, validation=False):
         rng = np.random.default_rng(self.seed)  # Local RNG
@@ -120,7 +102,6 @@ class Agent(object):
         joint_action = self.actor(state)
         if not validation:
             if self.update_step < self.warmup:
-                # joint_action = torch.tensor(np.random.normal(scale=current_noise_scale, size=(self.action_dim,)), dtype=torch.float).to(device)
                 joint_action = torch.tensor(rng.uniform(-self.max_action, self.max_action, size=(self.action_dim,)),
                                             dtype=torch.float, device=device)
             else:
@@ -185,12 +166,53 @@ class Agent(object):
         # )
         self.update_step += 1
 
-    def save(self):
-        print('.... saving models ....')
-        self.actor.save_checkpoint()
-        self.critic.save_checkpoint()
+    def _save(self, filename):
+        checkpoint = {
+            'actor_state_dict': self.actor.state_dict(),
+            'critic_state_dict': self.critic.state_dict(),
+            'actor_optimizer': self.actor.optimizer.state_dict(),
+            'critic_optimizer': self.critic.optimizer.state_dict(),
+            'normalizer_state': self.normalizer.state_dict(),
+        }
+        save_path = os.path.join(self.checkpoint_dir, filename)
+        torch.save(checkpoint, save_path)
 
-    def load(self):
-        print('.... loading models ....')
-        self.actor.load_checkpoint()
-        self.critic.load_checkpoint()
+    def save_best(self):
+        print("...Save Best...")
+        self._save("best")
+
+    def save_last(self):
+        print("...Save Last...")
+        self._save("last")
+
+    def load_best(self):
+        path = os.path.join(self.checkpoint_dir, "best")
+        if not os.path.exists(path):
+            print(f"No checkpoint found at {path}")
+            return
+        checkpoint = torch.load(path, map_location=device)
+        # 1. Load Models
+        self.actor.load_state_dict(checkpoint['actor_state_dict'])
+        self.critic.load_state_dict(checkpoint['critic_state_dict'])
+        if 'actor_optimizer' in checkpoint:
+            self.actor.optimizer.load_state_dict(checkpoint['actor_optimizer'])
+            self.critic.optimizer.load_state_dict(checkpoint['critic_optimizer'])
+        if 'normalizer_state' in checkpoint and self.normalizer is not None:
+            self.normalizer.load_state_dict(checkpoint['normalizer_state'])
+            print(f"Normalizer loaded: n={self.normalizer.n}")
+
+    def load_last(self):
+        path = os.path.join(self.checkpoint_dir, "last")
+        if not os.path.exists(path):
+            print(f"No checkpoint found at {path}")
+            return
+        checkpoint = torch.load(path, map_location=device)
+        # 1. Load Models
+        self.actor.load_state_dict(checkpoint['actor_state_dict'])
+        self.critic.load_state_dict(checkpoint['critic_state_dict'])
+        if 'actor_optimizer' in checkpoint:
+            self.actor.optimizer.load_state_dict(checkpoint['actor_optimizer'])
+            self.critic.optimizer.load_state_dict(checkpoint['critic_optimizer'])
+        if 'normalizer_state' in checkpoint and self.normalizer is not None:
+            self.normalizer.load_state_dict(checkpoint['normalizer_state'])
+            print(f"Normalizer loaded: n={self.normalizer.n}")
