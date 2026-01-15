@@ -55,4 +55,18 @@ class RunningStatNormalizer:
         # The formula for standardization (Z-score)
         return (x - self.mean) / (self.std + self._epsilon)
 
+    def state_dict(self):
+        """Returns the internal state of the normalizer."""
+        return {
+            'n': self.n,
+            'mean': self.mean,
+            'M2': self.M2,
+            'std': self.std
+        }
 
+    def load_state_dict(self, state_dict):
+        """Restores the internal state."""
+        self.n = state_dict['n']
+        self.mean = state_dict['mean']
+        self.M2 = state_dict['M2']
+        self.std = state_dict['std']
