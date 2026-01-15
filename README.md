@@ -15,7 +15,7 @@ LfD4hri is a novel “Human-to-Robot” imitation learning pipeline that enables
     ├── DRL/
     │   ├── assets/                 Objects and robot configuration files
     │   ├── env/                    Reinforcement learning environments
-    │   ├── models/                 RL models (e.g., TD3, SAC, ...)
+    │   ├── models/                 RL models (TD3, SAC, ...)
     │   ├── reward/                 Reward function definitions
     │   └── train_td3.py            Main RL training code
     │
@@ -42,7 +42,7 @@ Action recognition checkpoint to `/Human-to-Robot-Interaction/mmaction2/pretrain
 Hand detection checkpoint to `/Human-to-Robot-Interaction/video_understanding_checkpoint/res101_handobj_100K/pascal_voc`
 
 ## Reinforcement Learning
-The system supports two robot arms, **UR5e** and **UF850**, each with four discrete action modes (reach, pick, move, put)
+The system supports two robot arms, **UR5e** and **UF850**, each with four discrete action modes (```0: reach, 1: pick, 2: move, 3: put```)
 ### Training
 
 To train a reinforcement learning policy, run:
@@ -56,10 +56,11 @@ Starting a new training will automatically reset all existing checkpoints, logs,
 # 3. Building and examples
 
 
-License
+# 4. License
 
+# 5. Citation
 
-If you use IRAF-SLAM in an academic work, please cite:
+If you use this work in an academic work, please cite:
   
     @article{canh2026human,
       title={Human-to-Robot Interaction: Learning from Video Demonstration for Robot Imitation},
