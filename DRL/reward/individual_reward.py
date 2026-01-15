@@ -15,7 +15,7 @@ class Reward:
         self.dt = dt
         self.step = 0  # for terminating
         self.env = env
-        self._read_specs_from_config(os.path.abspath(os.path.join(self.env.utils.find_project_root("DRL"), '../asset/params/reward.xml')))
+        self._read_specs_from_config(os.path.abspath(os.path.join(self.env.utils.find_project_root("drl_transporterNet"), '../asset/params/reward.xml')))
         self.first_success_step = 0
         self.remain = 10
         self.scale_factor = 10
