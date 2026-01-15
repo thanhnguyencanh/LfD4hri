@@ -17,16 +17,23 @@ warnings.filterwarnings("ignore")
 def eval_policy(policy, env, normalizer, eval_episodes=10, video=None, save=False):
     current_datetime = datetime.now()
     timestamp = current_datetime.strftime("%Y%m%d_%H%M%S")
-    success_rate = 0
+    success_count = 0
+    sum_of_per_step_averages = 0.0
     for i in range(eval_episodes):
+        episode_reward = 0.0
+        step = 0
         state, done = env.reset(), False
         while not done:
+            step += 1
             normalized_state = state.copy()
             normalized_state[:12] = normalizer.normalize(state[:12])
             action = policy.choose_action(normalized_state, validation=True)
             state, reward, done, info = env.step(action)
-            # avg_reward += reward
-        success_rate += any(info["log"])
+            episode_reward += reward
+        avg_reward_episode = episode_reward / step
+        sum_of_per_step_averages += avg_reward_episode
+        success_count += float(any(info["log"]))
+
         is_success = any(info["log"])
         if is_success and save:
             print("...video saving...")
@@ -42,14 +49,14 @@ def eval_policy(policy, env, normalizer, eval_episodes=10, video=None, save=Fals
             video_path = os.path.join(video, f"demo_ep{i}_view_2_action_{env.unwrapped.action_type}_{timestamp}_state_{is_success}.mp4")
             debug_clip.write_videofile(video_path, fps=15)
             print(f"Video saved to {video_path}")
-
-    success_rate /= eval_episodes
+    avg_success_rate = success_count / eval_episodes
+    final_score = sum_of_per_step_averages / eval_episodes
 
     print("---------------------------------------")
-    print(f"Evaluation over {eval_episodes} episodes: {success_rate:.3f}")
+    print(f"Eval ({eval_episodes} eps): Success={avg_success_rate:.2f} | Avg-Avg Reward={final_score:.2f}")
     print("---------------------------------------")
 
-    return success_rate
+    return final_score, avg_success_rate
 
 if __name__ == "__main__":
 
@@ -57,13 +64,14 @@ if __name__ == "__main__":
     parser.add_argument("--policy_name", default="td3")  # Policy name
     parser.add_argument("--env_name", default="ImitationLearning-v1")  # environment name
     parser.add_argument("--warmup", default=20000, type=int)  # purely random action
+    parser.add_argument("--robot", default="ur5e", type=str, required=True)  # robot [ur5e, uf850]
     parser.add_argument("--action", default=0, type=int, required=True)  # training action
     parser.add_argument("--seed", default=42, type=int)
     parser.add_argument("--log_path", default='reward_log', type=str)  # reward log path
     parser.add_argument("--checkpoint", default='ckpt', type=str)  # checkpoint log path
     parser.add_argument("--video", default='demo', type=str)  # demo path
     parser.add_argument("--max_episode", default=1e6, type=int)  # Max episode to run environment for
-    parser.add_argument("--eval_freq", default=5e3, type=int)  # Evaluate frequency
+    parser.add_argument("--eval_freq", default=2000, type=int)  # Evaluate frequency
     parser.add_argument("--expl_noise", default=0.2, type=float)  # Gaussian exploration noise
     parser.add_argument("--batch_size", default=256, type=int)  # Batch size for both actor and critic (recommend 256)
     parser.add_argument("--discount", default=0.99, type=float)  # Discount factor
@@ -102,9 +110,11 @@ if __name__ == "__main__":
                    noise_clip=args.noise_clip, policy_freq=args.policy_freq, normalizer=normalizer, chkpt_dir=os.path.join(base, args.checkpoint))
     replay_buffer = ReplayBuffer()
 
-    max_episode_avg_reward = best_reward = float('-inf')
+    best_success_rate = -1.0
+    best_reward = -float('inf')
     env.unwrapped.action_type = args.action
     env.unwrapped.writer = writer
+    env.unwrapped.robot = args.robot
     reward_history = []
     avg_reward_history = []
     curr_episode = 0
@@ -144,14 +154,26 @@ if __name__ == "__main__":
         reward_history.append(total_reward)
         avg_reward_history.append(total_reward / n_steps)
         success.append(any(info['log']))
-        max_episode_avg_reward = max(total_reward/n_steps, max_episode_avg_reward)
 
-        if best_reward <= total_reward/n_steps and success[-1]:
-            best_reward = total_reward/n_steps
-            policy.save()
+        if curr_episode % 100 == 0 and curr_episode != 0:
+            policy.save_last()
+
+        if curr_episode == 50005:
+            best_reward = -10
+
+        if curr_episode % args.eval_freq == 0 and curr_episode != 0:
             # env.unwrapped.virtualize = True
             # env.unwrapped.eval = True
-            success_rate = eval_policy(policy, env, normalizer, eval_episodes=10, video=args.video, save=env.unwrapped.virtualize)
+            avg_reward, success_rate = eval_policy(policy, env, normalizer, eval_episodes=15, video=os.path.join(base, args.video), save=env.unwrapped.virtualize)
+            is_best = False
+            if success_rate > best_success_rate:
+                is_best = True
+            elif success_rate == best_success_rate and avg_reward > best_reward:
+                is_best = True
+            if is_best:
+                best_success_rate = success_rate
+                best_reward = avg_reward
+                policy.save_best()
             writer.add_scalar("Eval/success rate", success_rate, curr_episode)
 
         env.unwrapped.virtualize = False
@@ -164,7 +186,6 @@ if __name__ == "__main__":
             writer.add_scalar("Reward/moving_avg_of_avg_reward", moving_avg_avg, curr_episode)
         writer.add_scalar('Reward/avg_total_reward_per_episode', total_reward/n_steps, curr_episode)
         writer.add_scalar('Reward/episode reward', episode_reward, curr_episode)
-        # writer.add_scalar('Reward/episode_return', max_episode_avg_reward, curr_episode)
         writer.add_scalar(f"Reward/success rate", sum(success[-100:]) / 100, curr_episode)
         elapsed = int(time.time() - t0)
         print('------------------------------------------------------')
