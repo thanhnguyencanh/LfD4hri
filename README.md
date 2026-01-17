@@ -52,7 +52,7 @@ LfD4hri/video_understanding_checkpoint/res101_handobj_100K/pascal_voc
 The system supports two robot arms, **UR5e** and **UF850**, each with four discrete action modes (```0: reach, 1: pick, 2: move, 3: put```)
 We recommend adjusting the success threshold—defined as the acceptable positional error by modifying `threshold_1` in the following configuration file:
 ```
-sudo nano DRL/asset/params/reward.xml
+DRL/asset/params/reward.xml
 ```
 ### Training
 
