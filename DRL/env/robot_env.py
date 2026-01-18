@@ -103,7 +103,7 @@ class ImitationLearning(gym.Env):
                         break
                     else:
                         nn_dist = np.min(np.linalg.norm(obj_xyz - rand_xyz, axis=1)).squeeze()
-                        if nn_dist > 0.12:
+                        if nn_dist > 0.11:
                             obj_xyz = np.concatenate((obj_xyz, rand_xyz), axis=0)
                             break
                 object_color = self.COLORS[obj_name.split(' ')[0]]
