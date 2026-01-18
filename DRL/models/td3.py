@@ -4,12 +4,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
 import shutil
-from config import *
+from ur5e_config import *
 import os
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def path_init(dir_path):
-    # dir_path = os.path.dirname(file_path)
     if os.path.isdir(dir_path):
         shutil.rmtree(dir_path)
     os.makedirs(dir_path, exist_ok=True)
@@ -190,7 +189,7 @@ class Agent(object):
         if not os.path.exists(path):
             print(f"No checkpoint found at {path}")
             return
-        checkpoint = torch.load(path, map_location=device)
+        checkpoint = torch.load(path, map_location=device, weights_only=False)
         # 1. Load Models
         self.actor.load_state_dict(checkpoint['actor_state_dict'])
         self.critic.load_state_dict(checkpoint['critic_state_dict'])
@@ -206,7 +205,7 @@ class Agent(object):
         if not os.path.exists(path):
             print(f"No checkpoint found at {path}")
             return
-        checkpoint = torch.load(path, map_location=device)
+        checkpoint = torch.load(path, map_location=device, weights_only=False)
         # 1. Load Models
         self.actor.load_state_dict(checkpoint['actor_state_dict'])
         self.critic.load_state_dict(checkpoint['critic_state_dict'])
