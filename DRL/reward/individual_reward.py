@@ -1,4 +1,5 @@
 import numpy as np
+from config import *
 import pybullet
 import os
 
@@ -14,7 +15,8 @@ class Reward:
         self.dt = dt
         self.step = 0  # for terminating
         self.env = env
-        self._read_specs_from_config(os.path.abspath(os.path.join(self.env.utils.find_project_root("drl_transporterNet"), '../asset/params/reward.xml')))
+        self._read_specs_from_config(os.path.abspath(os.path.join(self.env.utils.find_project_root(self.env.root),
+                                                                  '../asset/params/reward.xml')))
         self.first_success_step = 0
         self.remain = 10
         self.scale_factor = 10
@@ -105,7 +107,7 @@ class Reward:
             float: Penalty value (0 to -1.0)
         """
         x, y, z = coords
-        bounds = self.env.BOUNDS.copy()
+        bounds = BOUNDS.copy()
         ws_x, ws_y = 0.0, 0.0
 
         # X-axis violation
@@ -135,7 +137,7 @@ class Reward:
         total_penalty = 0.0
         violation = False
 
-        for joint_idx, (lower_limit, upper_limit) in enumerate(self.env.JOINT_LIMITS):
+        for joint_idx, (lower_limit, upper_limit) in enumerate(JOINT_LIMITS):
             # joint = pybullet.getJointState(self.robot_id, joint_idx)
             current_angle = joints[joint_idx]  # Current joint angle (radians)
             # Check if angle is outside bounds
@@ -209,6 +211,7 @@ class Reward:
         contact = self.buf['contact_history']
         obj_po = np.linalg.norm(current_obj_down - self.env.target)  # Tracking object position
         cur_dist = np.linalg.norm(current_ee - current_obj_up)
+
         # Sub-goals with contact conditions (e.g., suction activation)
         if self.env.info[0] in ['1', '2', '3']:  # For pick/move/place: suction should be active
             contact_condition = contact[-1][0] and contact[-1][1]
@@ -278,7 +281,7 @@ class Reward:
         reward_1 = (1.3 if self.env.episode < self.env.curriculum_learning else 1.3/4) * np.exp(-cur_dist / self.sigma0)
         reward_1 += 0.3 * np.exp(-ee_orientation_error / 0.1)
         # reward_1 += 0.35 if cur_dist <= 0.02 else 0
-        reward_1 += 0.2 * np.exp(-cur_height / 0.02)  # robot moves its end effector close to the object along z axis
+        reward_1 += 0.15 * np.exp(-cur_height / 0.02)  # robot moves its end effector close to the object along z axis
         reward_1 += 0.1 * contact[-1][0]
         # reward_1 += 0.3 * np.exp((toward_object / self.sigma2) - 1) if toward_object > 0 else 0.0
         # Phase 2: Post-contact
@@ -289,7 +292,7 @@ class Reward:
             reward_3 = 0.80 * np.exp((toward_goal / self.sigma2) - 1) if toward_goal > 0 else 0.0
 
         total_reward = reward_1 + reward_2 + reward_3
-        print('------------------------------------------------------')
+
         print(
             f'\ndistance: {cur_dist} - '
             f'object: {obj_po} - '
@@ -307,13 +310,11 @@ class Reward:
             f'outside {outside1 or outside2} - '
             f'joint violation {joint_violation}'
         )
-        print('------------------------------------------------------')
         total_reward = (total_reward - constraint)/self.scale_factor
 
         if self._is_subgoal_achieved():
             self.first_success_step += 1
-            # total_reward = (2 + 3 * 3 - constraint)/self.scale_factor
-            total_reward = (2 + 3 * 3) / self.scale_factor
+            total_reward = 11/self.scale_factor
             return total_reward, True if self.first_success_step == self.remain else False, True
             # keep running even after success to get more useful experiences
         self.first_success_step = 0
