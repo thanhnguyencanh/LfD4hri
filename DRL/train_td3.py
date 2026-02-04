@@ -1,8 +1,8 @@
 import numpy as np
+from datetime import datetime
 import gym
 import env
 from moviepy.editor import ImageSequenceClip
-from datetime import datetime
 import argparse
 from torch.utils.tensorboard import SummaryWriter
 import shutil
@@ -12,7 +12,9 @@ from utils.relay_buffer import ReplayBuffer
 from models.td3 import Agent
 from utils.normalizer import RunningStatNormalizer
 import warnings
+
 warnings.filterwarnings("ignore")
+
 
 def eval_policy(policy, env, normalizer, eval_episodes=10, video=None, save=False):
     current_datetime = datetime.now()
@@ -38,15 +40,13 @@ def eval_policy(policy, env, normalizer, eval_episodes=10, video=None, save=Fals
         if is_success and save:
             print("...video saving...")
             debug_clip = ImageSequenceClip(env.cache_front_video, fps=15)
-            video_path = os.path.join(video, f"demo_ep{i}_view_0_action_{env.unwrapped.action_type}_{timestamp}_state_{is_success}.mp4")
+            video_path = os.path.join(video,f"demo_ep{i}_view_0_action_{env.unwrapped.action_type}_{timestamp}_state_{is_success}.mp4")
             debug_clip.write_videofile(video_path, fps=15)
-
             debug_clip = ImageSequenceClip(env.cache_side_video, fps=15)
-            video_path = os.path.join(video, f"demo_ep{i}_view_1_action_{env.unwrapped.action_type}_{timestamp}_state_{is_success}.mp4")
+            video_path = os.path.join(video,f"demo_ep{i}_view_1_action_{env.unwrapped.action_type}_{timestamp}_state_{is_success}.mp4")
             debug_clip.write_videofile(video_path, fps=15)
-
             debug_clip = ImageSequenceClip(env.cache_diagonal_video, fps=15)
-            video_path = os.path.join(video, f"demo_ep{i}_view_2_action_{env.unwrapped.action_type}_{timestamp}_state_{is_success}.mp4")
+            video_path = os.path.join(video,f"demo_ep{i}_view_2_action_{env.unwrapped.action_type}_{timestamp}_state_{is_success}.mp4")
             debug_clip.write_videofile(video_path, fps=15)
             print(f"Video saved to {video_path}")
     avg_success_rate = success_count / eval_episodes
@@ -58,18 +58,15 @@ def eval_policy(policy, env, normalizer, eval_episodes=10, video=None, save=Fals
 
     return final_score, avg_success_rate
 
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--policy_name", default="td3")  # Policy name
     parser.add_argument("--env_name", default="ImitationLearning-v1")  # environment name
-    parser.add_argument("--warmup", default=20000, type=int)  # How many time steps purely random policy is run for (20000 for all actions)
-    parser.add_argument("--root", default="drl_transporterNet", type=str, required=True)
-    parser.add_argument("--robot", default="ur5e", type=str, required=True)  # robot [ur5e, uf850]
+    parser.add_argument("--warmup", default=20000, type=int)  # purely random action
     parser.add_argument("--action", default=0, type=int, required=True)  # training action
-    # parser.add_argument("--virtualize", default=False, type=bool, required=True)  # training action
-    # parser.add_argument("--eval", default=False, type=bool, required=True)  # training action
-    # parser.add_argument("--seed", default=42, type=int)
+    parser.add_argument("--robot", default='ur5e', type=str, required=True)  # training robot
     parser.add_argument("--log_path", default='reward_log', type=str)  # reward log path
     parser.add_argument("--checkpoint", default='ckpt', type=str)  # checkpoint log path
     parser.add_argument("--video", default='demo', type=str)  # demo path
@@ -99,15 +96,9 @@ if __name__ == "__main__":
         os.makedirs(path)
 
     writer = SummaryWriter(os.path.join(base, args.log_path))
-    params = dict(
-        root=args.root,
-        robot=args.robot,
-        action_type=args.action,
-        max_episode=args.max_episode,
-        curriculum_learning=50000,
-        max_steps=args.max_steps,
-    )
-    env = gym.make(args.env_name, **params)
+    env = gym.make(args.env_name)
+    env.unwrapped.max_steps = args.max_steps  # define max steps
+    env.unwrapped.max_episode = args.max_episode  # define max steps
     normalizer = RunningStatNormalizer(shape=(12,))
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
@@ -116,14 +107,19 @@ if __name__ == "__main__":
     # Initialize policy
     policy = Agent(state_dim=state_dim, action_dim=action_dim, max_action=max_action, warmup=args.warmup, lr=1e-4,
                    writer=writer, discount=args.discount, tau=args.tau, policy_noise=args.policy_noise,
-                   noise_clip=args.noise_clip, policy_freq=args.policy_freq, normalizer=normalizer, chkpt_dir=os.path.join(base, args.checkpoint))
+                   noise_clip=args.noise_clip, policy_freq=args.policy_freq, normalizer=normalizer,
+                   chkpt_dir=os.path.join(base, args.checkpoint))
     replay_buffer = ReplayBuffer()
 
     best_success_rate = -1.0
     best_reward = -float('inf')
+    env.unwrapped.action_type = args.action
+    env.unwrapped.robot = args.robot
+    env.unwrapped.writer = writer
     reward_history = []
     avg_reward_history = []
     curr_episode = 0
+    env.unwrapped.curriculum_learning = args.max_episode
     episode_reward = 0
     success = []
     t0 = time.time()
@@ -155,6 +151,7 @@ if __name__ == "__main__":
             print(f"Episode: {curr_episode} Step: {n_steps} "
                   f"Reward: {reward:.5f}  --  Wallclk T: {elapsed // 86400}d {(elapsed % 86400) // 3600}h {(elapsed % 3600) // 60}m {elapsed % 60}s")
             print('------------------------------------------------------')
+
         reward_history.append(total_reward)
         avg_reward_history.append(total_reward / n_steps)
         success.append(any(info['log']))
@@ -162,13 +159,11 @@ if __name__ == "__main__":
         if curr_episode % 100 == 0 and curr_episode != 0:
             policy.save_last()
 
-        if curr_episode == 50010:
-            best_reward = -float('inf')
-
         if curr_episode % args.eval_freq == 0 and curr_episode != 0:
             # env.unwrapped.virtualize = True
             # env.unwrapped.eval = True
-            avg_reward, success_rate = eval_policy(policy, env, normalizer, eval_episodes=15, video=os.path.join(base, args.video), save=env.unwrapped.virtualize)
+            avg_reward, success_rate = eval_policy(policy, env, normalizer, eval_episodes=20,
+                                                   video=os.path.join(base, args.video), save=env.unwrapped.virtualize)
             is_best = False
             if success_rate > best_success_rate:
                 is_best = True
@@ -188,7 +183,7 @@ if __name__ == "__main__":
             moving_avg_avg = np.mean(avg_reward_history[-100:])
             writer.add_scalar("Reward/moving_avg_return", moving_avg, curr_episode)
             writer.add_scalar("Reward/moving_avg_of_avg_reward", moving_avg_avg, curr_episode)
-        writer.add_scalar('Reward/avg_total_reward_per_episode', total_reward/n_steps, curr_episode)
+        writer.add_scalar('Reward/avg_total_reward_per_episode', total_reward / n_steps, curr_episode)
         writer.add_scalar('Reward/episode reward', episode_reward, curr_episode)
         writer.add_scalar(f"Reward/success rate", sum(success[-100:]) / 100, curr_episode)
         elapsed = int(time.time() - t0)

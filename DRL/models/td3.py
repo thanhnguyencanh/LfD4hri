@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
 import shutil
-from ur5e_config import *
 import os
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -12,6 +11,17 @@ def path_init(dir_path):
     if os.path.isdir(dir_path):
         shutil.rmtree(dir_path)
     os.makedirs(dir_path, exist_ok=True)
+
+def torch_seed(SEED):
+    np.random.seed(SEED)
+    # Torch
+    torch.manual_seed(SEED)
+    torch.cuda.manual_seed(SEED)
+    torch.cuda.manual_seed_all(SEED)
+    # cuDNN (IMPORTANT)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.use_deterministic_algorithms(True)
 
 def weights_init(m):
     if isinstance(m, nn.Linear):
@@ -73,6 +83,7 @@ class Agent(object):
     def __init__(self, state_dim, action_dim, max_action=1, lr=1e-4, warmup=20000, writer=None,
                  discount=0.99, tau=0.001, policy_noise=0.2, noise_clip=0.2, policy_freq=2, normalizer=None,
                  chkpt_dir=None):
+        torch_seed(42)
         self.actor = Actor(state_dim, action_dim, max_action, lr=lr).to(device)
         self.actor_target = Actor(state_dim, action_dim, max_action, lr=lr).to(device)
         self.actor_target.load_state_dict(self.actor.state_dict())
@@ -92,7 +103,6 @@ class Agent(object):
         self.seed = 0
         self.normalizer = normalizer
         self.checkpoint_dir = chkpt_dir
-        torch.manual_seed(42)
         path_init(self.checkpoint_dir)
 
     def choose_action(self, state, noise_scale=0.5, validation=False):
