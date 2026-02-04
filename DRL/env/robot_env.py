@@ -1,5 +1,4 @@
 import os
-import importlib.util
 import numpy as np
 from utils.suction import Suction
 import pybullet
@@ -8,14 +7,14 @@ from reward.individual_reward import Reward
 from gym.spaces import Discrete, Box
 import gym
 from utils.random_env import random_env
+from config import *
 from utils.utils import Utils
 from utils import camera
 
 # @markdown **Gym-style environment class:** this initializes a robot overlooking a workspace with objects.
 class ImitationLearning(gym.Env):
-    def __init__(self, root=None, robot=None, action_type=None, max_episode=None, curriculum_learning=None,
-                 max_steps=None):
-        self.dt = 1 / 400  # smaller dt gets better accuracy -> physic update frequency
+    def __init__(self):
+        self.dt = 1/400  # smaller dt gets better accuracy -> physic update frequency
         # Configure and start PyBullet.
         pybullet.connect(pybullet.DIRECT)  # pybullet.GUI for local GUI.
         pybullet.configureDebugVisualizer(pybullet.COV_ENABLE_GUI, 0)
@@ -26,41 +25,40 @@ class ImitationLearning(gym.Env):
         pybullet.setPhysicsEngineParameter(numSolverIterations=100)  # physic engine step per time step
         pybullet.setPhysicsEngineParameter(contactERP=0.9, solverResidualThreshold=0)
         pybullet.setTimeStep(self.dt)
-        self.home_joints = (-np.pi / 2, -np.pi / 15, -2 * np.pi / 9, np.pi, 2 * np.pi / 7, 0) if robot == "uf850" \
+        
+        self.robot = 'uf850'
+        self.home_joints = (-np.pi / 2, -np.pi / 15, -2*np.pi / 9, np.pi, 2*np.pi / 7, 0) if self.robot == 'uf850' \
             else (np.pi / 2, -np.pi / 2, np.pi / 2, -np.pi / 2, 3 * np.pi / 2, 0)  # Initialize angles.
-        self.ee_link_id = 6 if robot == "uf850" else 9  # Link ID of end effector.
+        self.ee_link_id = 6 if self.robot == 'uf850' else 9  # Link ID of UR5 end effector.
         self.suction = None
+        self.root = None
+        self.state = None
+        self.action_type = None
+        self.max_episode = None
+        self.max_steps = None
+        self.curriculum_learning = None
         self.action_space = Box(low=-1, high=1, shape=(7,), dtype=np.float32)  # rad/s
         self.observation_space = Box(low=-np.inf, high=np.inf, shape=(37,), dtype=np.float32)
         self.agent_cams = camera.Camera.CONFIG
-        self.state = None
-        self.action_type = action_type
-        self.max_episode = max_episode
-        self.curriculum_learning = curriculum_learning
-        self.noise = True
+        self.utils = Utils()  # if moving into reset function -> remove ../ in config path
         self.frame = 5
         self.episode = 0
-        self.max_steps = max_steps
         self.virtualize = False
         self.eval = False
-        self.root = root
-        self.robot = robot
-        self.utils = Utils()  # if moving into reset function -> remove ../ in config path
-        self._read_specs_from_config(os.path.abspath(
-            os.path.join(self.utils.find_project_root(self.root), f'../asset/params/{self.robot}_suction.xml')))
-        self.load_constants(os.path.join(self.utils.find_project_root(self.root), f'../{self.robot}_config.py'))
         self.workspace_bound = np.array([
-            self.BOUNDS[0][-1] - self.BOUNDS[0][0],
-            self.BOUNDS[1][-1] - self.BOUNDS[1][0],
-            self.BOUNDS[2][-1] - self.BOUNDS[2][0]
+            BOUNDS[0][-1] - BOUNDS[0][0],
+            BOUNDS[1][-1] - BOUNDS[1][0],
+            BOUNDS[2][-1] - BOUNDS[2][0]
         ])
+        self._read_specs_from_config(os.path.abspath(os.path.join(self.utils.find_project_root(self.root),
+                                                                  f'../asset/params/{self.robot}_suction.xml')))
 
     def seed(self, seed):
         print('set seed')
         self.np_random, _ = gym.utils.seeding.np_random(seed)
 
     def _load(self, config):
-        """Generate object in env"""
+        ''' Generate object in env'''
         self.config = config  # Required objects
         self.obj_ids = []
         self.obj_name_to_id = {}  # Object id
@@ -70,12 +68,11 @@ class ImitationLearning(gym.Env):
         pybullet.configureDebugVisualizer(pybullet.COV_ENABLE_RENDERING, 0)
         # Add robot.
         self.plane = pybullet.loadURDF("plane.urdf", [0, 0, -0.001])
-        self.robot_id = pybullet.loadURDF(
-            os.path.abspath(os.path.join(self.utils.find_project_root(self.root), f"../asset/{self.robot}/{self.robot}.urdf"))
-            , [0, 0, 0], useFixedBase=True, flags=pybullet.URDF_USE_MATERIAL_COLORS_FROM_MTL)
-        self.ghost_id = pybullet.loadURDF(
-            os.path.abspath(os.path.join(self.utils.find_project_root(self.root), f"../asset/{self.robot}/{self.robot}.urdf"))
-            , [0, 0, -10])  # For forward kinematics.
+        self.robot_id = pybullet.loadURDF(os.path.abspath(os.path.join(self.utils.find_project_root(self.root),
+                                                                       f"../asset/{self.robot}/{self.robot}.urdf")), [0, 0, 0],
+                                          useFixedBase=True, flags=pybullet.URDF_USE_MATERIAL_COLORS_FROM_MTL)
+        self.ghost_id = pybullet.loadURDF(os.path.abspath(os.path.join(self.utils.find_project_root(self.root),
+                                                                       f"../asset/{self.robot}/{self.robot}.urdf")), [0, 0, -10])  # For forward kinematics.
         self.joint_ids = [pybullet.getJointInfo(self.robot_id, i) for i in range(pybullet.getNumJoints(self.robot_id))]
         self.joint_ids = [j[0] for j in self.joint_ids if j[2] == pybullet.JOINT_REVOLUTE]
 
@@ -83,47 +80,45 @@ class ImitationLearning(gym.Env):
         for i in range(len(self.joint_ids)):
             pybullet.resetJointState(self.robot_id, self.joint_ids[i], self.home_joints[i])
         # Add workspace.
-        plane_shape = pybullet.createCollisionShape(pybullet.GEOM_BOX, halfExtents=[0.35, 0.35, 0.003])
-        plane_visual = pybullet.createVisualShape(pybullet.GEOM_BOX, halfExtents=[0.35, 0.35, 0.003])
+        plane_shape = pybullet.createCollisionShape(pybullet.GEOM_BOX, halfExtents=[0.45, 0.35, 0.003])
+        plane_visual = pybullet.createVisualShape(pybullet.GEOM_BOX, halfExtents=[0.45, 0.35, 0.003])
         plane_id = pybullet.createMultiBody(0, plane_shape, plane_visual, basePosition=[0, -0.5, 0])
         pybullet.changeVisualShape(plane_id, -1, rgbaColor=[0.2, 0.2, 0.2, 1.0])
-
         # Load objects according to config.
         obj_names = list(self.config['pick']) + list(self.config['place'])
         obj_xyz = np.zeros((0, 3))
         for obj_name in obj_names:
-            if obj_name not in list(self.FIXED_DESTINATION.keys()):
+            if obj_name not in list(FIXED_DESTINATION.keys()):
                 # Get random position 13cm+ from other objects.
                 while True:
-                    rand_x = self.np_random.uniform(self.BOUNDS[0, 0], self.BOUNDS[0, 1])
-                    rand_y = self.np_random.uniform(self.BOUNDS[1, 0], self.BOUNDS[1, 1])
+                    rand_x = self.np_random.uniform(BOUNDS[0, 0], BOUNDS[0, 1])
+                    rand_y = self.np_random.uniform(BOUNDS[1, 0], BOUNDS[1, 1])
                     rand_xyz = np.float32([rand_x, rand_y, 0.03]).reshape(1, 3)
                     if len(obj_xyz) == 0:
                         obj_xyz = np.concatenate((obj_xyz, rand_xyz), axis=0)
                         break
                     else:
                         nn_dist = np.min(np.linalg.norm(obj_xyz - rand_xyz, axis=1)).squeeze()
-                        if nn_dist > 0.11:
+                        if nn_dist > 0.13:
                             obj_xyz = np.concatenate((obj_xyz, rand_xyz), axis=0)
                             break
-                object_color = self.COLORS[obj_name.split(' ')[0]]
+
+                object_color = COLORS[obj_name.split(' ')[0]]
                 object_type = obj_name.split(' ')[1]
                 object_position = rand_xyz.squeeze()
                 if object_type == 'block':
                     object_shape = pybullet.createCollisionShape(pybullet.GEOM_BOX, halfExtents=[0.02, 0.02, 0.02])
                     object_visual = pybullet.createVisualShape(pybullet.GEOM_BOX, halfExtents=[0.02, 0.02, 0.02])
-                    object_id = pybullet.createMultiBody(0.01, object_shape, object_visual,
-                                                         basePosition=object_position)
+                    object_id = pybullet.createMultiBody(0.01, object_shape, object_visual, basePosition=object_position)
                 elif object_type == 'egg':
                     object_shape = pybullet.createCollisionShape(pybullet.GEOM_SPHERE, 0.03, [1.0, 1.0, 1.4])
                     object_visual = pybullet.createVisualShape(pybullet.GEOM_SPHERE, 0.03, [1.0, 1.0, 1.4])
-                    object_id = pybullet.createMultiBody(0.05, object_shape, object_visual,
-                                                         basePosition=object_position)
+                    object_id = pybullet.createMultiBody(0.01, object_shape, object_visual, basePosition=object_position)
                 else:
                     object_position[2] = 0
-                    object_id = pybullet.loadURDF(os.path.abspath(
-                        os.path.join(self.utils.find_project_root(self.root), f"../asset/{object_type}/{object_type}.urdf")), object_position,
-                        useFixedBase=1 if 'bowl' in object_type else 0)
+                    object_id = pybullet.loadURDF(os.path.abspath(os.path.join(self.utils.find_project_root(self.root),
+                                                                               f"../asset/{object_type}/{object_type}.urdf")),
+                                                  object_position, useFixedBase=1 if 'bowl' in object_type else 0)
                 pybullet.changeDynamics(object_id, -1,
                                         lateralFriction=1.0,
                                         spinningFriction=0.01,
@@ -165,7 +160,7 @@ class ImitationLearning(gym.Env):
         self.sim_step = 0
         self.stable_factor = 0
         self.seed(self.episode)
-        config, instruction = random_env(self, self.action_type, seed=self.episode)
+        config, instruction = random_env(self.action_type, seed=self.episode)
         self._load(config)
         # read joint positions
         self._read_state()
@@ -174,13 +169,13 @@ class ImitationLearning(gym.Env):
         object2 = config["place"][self.np_random.randint(0, len(config["place"]))]
         # providing instruction
         instruction = instruction.format(object1, object2) if instruction.count("{}") == 2 else instruction.format(object1)
-        self.info = [self.ACTION_STATE[instruction.split(" ")[0]], object1, object2]
+        self.info = [ACTION_STATE[instruction.split(" ")[0]], object1, object2]
         # id assignment
         self.pick_object_id = self.obj_name_to_id[self.info[1]]
-        if self.info[2] not in self.FIXED_DESTINATION.keys():
+        if self.info[2] not in FIXED_DESTINATION.keys():
             self.place_object_id = self.obj_name_to_id[self.info[2]]
-        if self.info[2] in self.FIXED_DESTINATION.keys():
-            self.place = np.array(self.FIXED_DESTINATION[self.info[2]])
+        if self.info[2] in FIXED_DESTINATION.keys():
+            self.place = np.array(FIXED_DESTINATION[self.info[2]])
         else:
             self.place = self._read_info(self.place_object_id)[:3]  # ori shape: [3,]
 
@@ -196,6 +191,7 @@ class ImitationLearning(gym.Env):
                                             ))  # shape: [16,]
 
         self.task_state_vector += self._random_noise(self.task_state_vector, 0.005)  # randomize
+
         self.reward_func = Reward(dt=self.dt*self.frame, env=self)
         self.observation = np.concatenate((self.state,  # joint position + joint velocity
                                            np.zeros(2),  # suction state, contact state
@@ -236,11 +232,13 @@ class ImitationLearning(gym.Env):
         self._do_simulation()
         self._read_state()  # Final state after control
         self.last_commanded_position = np.concatenate((self.state[:6], [ctrl_feasible[-1]]))
+
         suction_signal = float(ctrl_feasible[-1]) > 0.04  # suction state
         self.suction.activate() if suction_signal else self.suction.release()  # suction de/activate
         self._do_simulation()
+
         # Get current data
-        self._save_data([suction_signal, self._read_contact(self.info[0])], "contact_history")  # suction signal and contacting signal
+        self._save_data([suction_signal, self._read_contact(self.info[0])], "contact_history") # suction signal and contacting signal
         self._save_data(np.float32(pybullet.getLinkState(self.suction.body, 0)[0]), "ee_history")  # shape: [3,] store the old ee position
         self._save_data(self._read_info(self.pick_object_id), "obj_history")  # shape: [3,] store new movement position
 
@@ -395,6 +393,8 @@ class ImitationLearning(gym.Env):
                 - vel_bound: velocity limits of each joint.
                 - pos_noise_amp: scaling factor of the random noise applied in each observation of the robot joint positions.
                 - vel_noise_amp: scaling factor of the random noise applied in each observation of the robot joint velocities.
+            Args:
+                robot_configs (str): path to 'ur5_suction.xml'
             """
         root, root_name = self.utils.get_config_root_node(config_file_name=robot_configs)
         robot_name = root_name[0]
@@ -417,20 +417,6 @@ class ImitationLearning(gym.Env):
             self.robot_vel_noise_amp[i] = self.utils.read_config_from_node(
                 root, "qpos" + str(i), "vel_noise_amp", float
             )[0]
-
-    def load_constants(self, file_path):
-        module_name = os.path.splitext(os.path.basename(file_path))[0]
-
-        spec = importlib.util.spec_from_file_location(module_name, file_path)
-        if spec is None or spec.loader is None:
-            raise ImportError(f"Cannot load config from {file_path}")
-
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-        for name in dir(module):
-            if name.isupper():  # only constants
-                setattr(self, name, getattr(module, name))
 
     def step_sim_and_render(self):
         pybullet.stepSimulation()
@@ -455,4 +441,3 @@ class ImitationLearning(gym.Env):
             raise NotImplementedError('Only rgb_array implemented')
         color, _, _, _, _ = self.utils.render_image(**self.agent_cams[view])
         return color
-
