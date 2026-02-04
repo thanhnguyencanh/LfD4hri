@@ -89,8 +89,8 @@ class Suction(Gripper):
         parentFramePosition=(0, 0, 0),
         childFramePosition=(0, 0, -0.08))  # the suction head mounted below ee -8cm
     pybullet.changeConstraint(constraint_id, maxForce=1e7)  # Force to attach suction to end joint of robot
-    pybullet.changeDynamics(self.body, -1, lateralFriction=1.0, contactStiffness=3000,
-                            contactDamping=70)  # Added for contact sensitivity, making the suction tip’s contacts harder and more detectable with minimal penetration
+    pybullet.changeDynamics(self.body, -1, lateralFriction=1.0, contactStiffness=3500,
+                            contactDamping=75)  # Added for contact sensitivity, making the suction tip’s contacts harder and more detectable with minimal penetration
     # Critical damping = sqrt(2*k*m)
     # Reference to object IDs in environment for simulating suction.
     self.obj_ids = obj_ids

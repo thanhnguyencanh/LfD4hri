@@ -1,8 +1,9 @@
 import numpy as np
+from config import *
 """
   Randomly initialize the environment for DRL training
 """
-def random_env(env, action, seed):
+def random_env(action, seed):
     np.random.seed(seed)
     # Random env config
     # k1 = randint(1, 3) #for diverse objects
@@ -10,11 +11,11 @@ def random_env(env, action, seed):
     k1 = np.random.randint(3, 5)
     k2 = np.random.randint(2, 4)
     # Get pick and place items
-    pick_items = list(env.PICK_TARGETS.keys())
+    pick_items = list(PICK_TARGETS.keys())
     pick_items = np.random.choice(pick_items, size=k1, replace=False)
 
     # Ensure place_items doesn't overlap with pick_items
-    place_items = list(env.PLACE_TARGETS.keys())
+    place_items = list(PLACE_TARGETS.keys())
     for pick_item in pick_items:
         if pick_item in place_items:  # Check before removing
             place_items.remove(pick_item)
@@ -27,7 +28,7 @@ def random_env(env, action, seed):
     # Create config for environment
     config = {'pick': pick_items, 'place': place_items}
     # Random instruction
-    instruction = env.INSTRUCTION_FORM[action]
+    instruction = INSTRUCTION_FORM[action]
 
     return config, instruction
 

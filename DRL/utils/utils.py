@@ -2,7 +2,6 @@ from transforms3d import euler
 import numpy as np
 import xml.etree.ElementTree as ET
 import pybullet
-from config import *
 import os
 
 class Utils:

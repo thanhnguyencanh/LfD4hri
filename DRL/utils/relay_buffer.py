@@ -33,11 +33,11 @@ class ReplayBuffer(object):
         # (state, next_state, (action, possible_action), reward, done)
         for i in ind:
             state, next_state, action, reward, done = self.storage[i]
-            states.append(np.array(state, copy=False))
-            next_states.append(np.array(next_state, copy=False))
-            actions.append(np.array(action, copy=False))
-            rewards.append(np.array(reward, copy=False))
-            dones.append(np.array(done, copy=False))
+            states.append(np.asarray(state))
+            next_states.append(np.asarray(next_state))
+            actions.append(np.asarray(action))
+            rewards.append(np.asarray(reward))
+            dones.append(np.asarray(done))
 
         return [np.array(states), np.array(next_states), np.array(actions),
                 np.array(rewards).reshape(-1, 1), np.array(dones).reshape(-1, 1)]
