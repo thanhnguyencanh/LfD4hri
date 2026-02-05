@@ -25,7 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("--log_path", default='reward_log', type=str)  # reward log path
     parser.add_argument("--checkpoint", default='ckpt', type=str)  # checkpoint log path
     parser.add_argument("--video", default='demo', type=str)  # demo path
-    parser.add_argument("--max_episode", default=50, type=int)  # Max episode to run environment for
+    parser.add_argument("--max_episode", default=100, type=int)  # Max episode to run environment for
     parser.add_argument("--eval_freq", default=5e3, type=int)  # Evaluate frequency
     parser.add_argument("--expl_noise", default=0.2, type=float)  # Gaussian exploration noise
     parser.add_argument("--batch_size", default=256, type=int)  # Batch size for both actor and critic (recommend 256)
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     policy = Agent(state_dim=state_dim, action_dim=action_dim, max_action=max_action, warmup=args.warmup, lr=1e-4,
                    writer=writer, discount=args.discount, tau=args.tau, policy_noise=args.policy_noise,
                    noise_clip=args.noise_clip, policy_freq=args.policy_freq, normalizer=normalizer, chkpt_dir=os.path.join(base, args.checkpoint))
-    policy.load()
+    policy.load_best()
     replay_buffer = ReplayBuffer()
     env.unwrapped.action_type = args.action
     env.unwrapped.curriculum_learning = 50000
@@ -72,8 +72,8 @@ if __name__ == "__main__":
     episode_reward = 0
     success = []
     t0 = time.time()
-    env.unwrapped.virtualize = True
-    env.unwrapped.eval = True
+    #env.unwrapped.virtualize = True
+    #env.unwrapped.eval = True
     success_rate = 0
     '''TRAINING PROCESS'''
     while curr_episode < args.max_episode:
@@ -90,7 +90,7 @@ if __name__ == "__main__":
             n_steps += 1
         success_rate += any(info["log"])
         is_success = any(info["log"])
-        if is_success:
+        if is_success and False:
             print("...video saving...")
             debug_clip = ImageSequenceClip(env.cache_front_video, fps=15)
             video_path = os.path.join(os.path.join(base, args.video), f"demo_ep{curr_episode}_view_0_action_{env.unwrapped.action_type}_{timestamp}_state_{is_success}.mp4")
