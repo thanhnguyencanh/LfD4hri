@@ -322,4 +322,3 @@ class ImitationLearning(gym.Env):
 
     def __del__(self):
         """Destructor to ensure cleanup."""
-        self.close()
