@@ -36,7 +36,7 @@ class ImitationLearning(gym.Env):
         self.observation_space = Box(low=-np.inf, high=np.inf, shape=(37,), dtype=np.float32)
         self.agent_cams = camera.Camera.CONFIG
         self.chosen_coordination = np.array([0, 0, 0])
-        self.object_orientation = np.array([0, 0, 0])
+        self.object_orientation = np.array([0, 0, 0, 0])
         self.state = None
         self.action_type = None
         self.max_episode = None
