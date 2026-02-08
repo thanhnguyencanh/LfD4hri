@@ -35,10 +35,25 @@ class UF850:
 
     def connect(self):
         self.arm = XArmAPI(self.ip)
+        self.arm.clean_error()
+        self.arm.clean_warn()
         self.arm.motion_enable(enable=True)
         self.arm.set_mode(0)
         self.arm.set_state(state=0)
+        time.sleep(0.5)
         logger.info(f"Connected to UF850 at {self.ip}")
+
+    def ensure_ready(self):
+        """Ensure robot is ready to receive commands."""
+        if self.arm.has_error:
+            self.arm.clean_error()
+        if self.arm.has_warn:
+            self.arm.clean_warn()
+        if self.arm.mode != 0:
+            self.arm.set_mode(0)
+        if self.arm.state != 0:
+            self.arm.set_state(0)
+        time.sleep(0.05)
 
     def disconnect(self):
         if self.arm:
@@ -58,14 +73,21 @@ class UF850:
             speed: Joint speed in deg/s. Uses default if None.
             wait: Block until motion completes.
         """
+        # Ensure robot is ready
+        self.ensure_ready()
+
         speed = speed or self.speed
+        # Only pass first 6 angles
+        angles = list(angles_deg)[:6]
         ret = self.arm.set_servo_angle(
-            angle=list(angles_deg),
+            angle=angles,
             speed=speed,
             wait=wait,
         )
         if ret != 0:
             logger.warning(f"set_servo_angle returned {ret}")
+            # Try to recover
+            self.ensure_ready()
         return ret
 
     def set_joints_rad(self, angles_rad, speed=None, wait=True):
@@ -97,6 +119,25 @@ class UF850:
             np.ndarray of shape (6,) with joint angles in radians.
         """
         return np.deg2rad(self.get_joints())
+
+    def get_joint_states(self):
+        """Get current joint positions and velocities.
+
+        Returns:
+            tuple: (positions_rad, velocities_rad_s) each as np.ndarray of shape (6,)
+        """
+        # Get positions
+        ret, angles = self.arm.get_servo_angle()
+        if ret != 0:
+            logger.warning(f"get_servo_angle returned {ret}")
+        positions_deg = np.array(angles[:6])
+        positions_rad = np.deg2rad(positions_deg)
+
+        # Get velocities (realtime joint speeds in deg/s)
+        velocities_deg = np.array(self.arm.realtime_joint_speeds[:6])
+        velocities_rad = np.deg2rad(velocities_deg)
+
+        return positions_rad, velocities_rad
 
     def get_position(self):
         """Get current end-effector position [x, y, z, roll, pitch, yaw].

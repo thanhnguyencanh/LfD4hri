@@ -25,7 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("--log_path", default='reward_log', type=str)  # reward log path
     parser.add_argument("--checkpoint", default='ckpt', type=str)  # checkpoint log path
     parser.add_argument("--max_episode", default=1, type=int)  # Max episode to run environment for
-    parser.add_argument("--max_steps", default=100, type=int)  # max steps per episode
+    parser.add_argument("--max_steps", default=500, type=int)  # max steps per episode
     parser.add_argument("--discount", default=0.99, type=float)  # Discount factor
     parser.add_argument("--tau", default=0.005, type=float)  # Target network update rate
     parser.add_argument("--policy_noise", default=0.2, type=float)  # Noise added to target policy during critic update
@@ -65,6 +65,9 @@ if __name__ == "__main__":
                    chkpt_dir=os.path.join(base, args.checkpoint))
     policy.load_best()
 
+    # Debug: Print normalizer stats
+    print(f"Normalizer stats - n: {normalizer.n}, mean: {normalizer.mean}, std: {normalizer.std}")
+
     env.unwrapped.action_type = args.action
     curr_episode = 0
     success_rate = 0
@@ -88,6 +91,12 @@ if __name__ == "__main__":
                 # Normalize state for policy
                 normalized_state = state.copy()
                 normalized_state[:12] = normalizer.normalize(state[:12])
+
+                # Debug: Print raw vs normalized state (first step only)
+                if n_steps == 0:
+                    print(f"Raw state[:12]: {state[:12]}")
+                    print(f"Normalized state[:12]: {normalized_state[:12]}")
+                    print(f"Task state (state[14:30]): {state[14:30]}")
 
                 # Get action from policy
                 action = policy.choose_action(normalized_state, validation=True)

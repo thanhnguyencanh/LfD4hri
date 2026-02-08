@@ -8,8 +8,8 @@ import os
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def path_init(dir_path):
-    if os.path.isdir(dir_path):
-        shutil.rmtree(dir_path)
+    # if os.path.isdir(dir_path):
+        # shutil.rmtree(dir_path)
     os.makedirs(dir_path, exist_ok=True)
 
 def torch_seed(SEED):
@@ -195,6 +195,7 @@ class Agent(object):
         self._save("last")
 
     def load_best(self):
+        print("...Load Best...")
         path = os.path.join(self.checkpoint_dir, "best")
         if not os.path.exists(path):
             print(f"No checkpoint found at {path}")

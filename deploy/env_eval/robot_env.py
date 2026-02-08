@@ -8,9 +8,8 @@ from config import *
 from utils.utils import Utils
 from utils.RealRobotUtils import UF850
 
-# Home joint angles in radians
+# Home joint angles in radians (must match training: DRL/env/robot_env.py)
 HOME_JOINTS_RAD = (0, np.pi / 15, -2 * np.pi / 9, np.pi, 2 * np.pi / 7, 0)
-
 
 class ImitationLearning(gym.Env):
     """Real robot environment for policy deployment."""
@@ -22,8 +21,8 @@ class ImitationLearning(gym.Env):
         self.observation_space = Box(low=-np.inf, high=np.inf, shape=(37,), dtype=np.float32)
 
         # Target coordination for the task
-        self.chosen_coordination = np.array([0.5512, 0.0555, -0.0071])
-        self.object_orientation = np.array([0, 1, 0, 0])
+        self.chosen_coordination = np.array([0.8, 0.0, 0.4])
+        self.object_orientation = np.array([0, 0, 0, 1])
         self.state = None
         self.action_type = None
         self.max_episode = None
@@ -72,7 +71,7 @@ class ImitationLearning(gym.Env):
 
         # Move robot to home position
         print("Moving robot to home position...")
-        self.real_robot.go_home()
+        # self.real_robot.go_home()
         self.real_robot.set_suction(on=False)
         self._suction_state = False
         self._contact_detected = False
@@ -86,7 +85,7 @@ class ImitationLearning(gym.Env):
         self.target = self.chosen_coordination + np.array([0, 0, 0])
         self.ee_obj = self._get_ee_coordination() - self.chosen_coordination
         self.obj_target = (self.chosen_coordination - np.array(
-            [1, 1, self.chosen_coordination[-1]])) - self.target
+            [0, 0, self.chosen_coordination[-1]])) - self.target
 
         # Build task state vector (16D)
         self.task_state_vector = np.concatenate((
@@ -129,7 +128,12 @@ class ImitationLearning(gym.Env):
         self._save_data(ctrl_feasible, "joint")
 
         # Extract joint angles and suction signal
-        joint_angles_rad = ctrl_feasible[:-1]
+        joint_angles_rad = ctrl_feasible[:-1].copy()
+
+        # URDF joint axis sign correction (URDF J1 has axis [0,-1,0], real robot uses [0,1,0])
+        # Flip sign of J1 to match real robot convention
+        joint_angles_rad[1] = -joint_angles_rad[1]
+
         joint_angles_deg = [math.degrees(a) for a in joint_angles_rad]
         suction_signal = float(ctrl_feasible[-1]) > 0.04
 
@@ -147,7 +151,7 @@ class ImitationLearning(gym.Env):
             self._suction_state = suction_signal
 
         # Small delay to allow robot to move
-        time.sleep(0.02)
+        time.sleep(0.2)
 
         # Read new state
         self._read_state()
@@ -164,8 +168,10 @@ class ImitationLearning(gym.Env):
 
         # Update task state
         self.ee_obj = self._get_ee_coordination() - self.chosen_coordination
-        self.obj_target = (self.chosen_coordination - np.array([1, 1, self.chosen_coordination[-1]])) - self.target
-
+        print("EE-Obj: ", self.ee_obj)
+        self.obj_target = (self.chosen_coordination - np.array([0, 0, self.chosen_coordination[-1]])) - self.target
+        print("Obj-Target: ", self.obj_target)
+        
         # Compute reward (simplified for real robot - based on distance to target)
         ee_pos = self._get_ee_coordination()
         distance = np.linalg.norm(ee_pos - self.chosen_coordination)
@@ -194,6 +200,8 @@ class ImitationLearning(gym.Env):
             self.target / self.workspace_bound,
         ))
 
+        # print("Task state vector: ", self.task_state_vector)
+
         # Build observation
         self.observation = np.concatenate((
             self.state,
@@ -212,13 +220,23 @@ class ImitationLearning(gym.Env):
         # Get joint positions in radians
         joint_positions = self.real_robot.get_joints_rad()
 
-        # Estimate velocities (simple difference - could be improved)
-        if hasattr(self, '_prev_joint_positions') and self._prev_joint_positions is not None:
-            joint_velocities = (joint_positions - self._prev_joint_positions) / self.dt
-        else:
-            joint_velocities = np.zeros(6)
+        # URDF joint axis sign correction (match J1 convention)
+        joint_positions[1] = -joint_positions[1]
 
-        self._prev_joint_positions = joint_positions.copy()
+        # print("Joint positions (rad): ", joint_positions)
+
+        joint_positions_real, _ = self.real_robot.get_joint_states()
+        joint_velocities = np.zeros(6)  # Placeholder for joint velocities
+        # print("Joint positions from get_joint_states (rad): ", joint_positions_real)
+        # print("Joint velocities from get_joint_states (rad/s): ", joint_velocities_real)
+
+        # Estimate velocities 
+        # if hasattr(self, '_prev_joint_positions') and self._prev_joint_positions is not None:
+        #     joint_velocities = (joint_positions - self._prev_joint_positions) / self.dt
+        # else:
+        #     joint_velocities = np.zeros(6)
+
+        # self._prev_joint_positions = joint_positions.copy()
 
         # Add small noise for robustness (optional)
         if self.noise and hasattr(self, 'np_random'):
@@ -226,10 +244,12 @@ class ImitationLearning(gym.Env):
             joint_velocities = joint_velocities + self.np_random.uniform(-0.05, 0.05, size=6)
 
         self.state = np.hstack((joint_positions, joint_velocities))
+        # print("Joint velocities (rad/s): ", joint_velocities)
 
     def _get_ee_coordination(self):
         """Get end-effector position from real robot."""
         pos = self.real_robot.get_position()
+        # print("End-effector position (mm): ", pos)
         return pos[:3] / 1000.0  # Convert mm to meters
 
     def _check_contact(self):
@@ -245,7 +265,7 @@ class ImitationLearning(gym.Env):
 
             # Read force in Z direction
             fz = self.real_robot.arm.ft_ext_force[2]
-            contact = fz <= -3.0  # Contact threshold (adjust as needed)
+            contact = fz <= -10.0  # Contact threshold (adjust as needed)
 
             if contact and not self._contact_detected:
                 print(f"Contact detected! Fz={fz:.2f}N")
@@ -314,7 +334,7 @@ class ImitationLearning(gym.Env):
             try:
                 if hasattr(self, '_ft_enabled') and self._ft_enabled:
                     self.real_robot.arm.ft_sensor_enable(0)
-                self.real_robot.set_suction(on=False)
+                self.real_robot.set_suction(on=True)
                 self.real_robot.go_home()
                 self.real_robot.disconnect()
             except Exception as e:
