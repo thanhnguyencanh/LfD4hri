@@ -16,7 +16,7 @@ class ImitationLearning(gym.Env):
     """Real robot environment for policy deployment."""
 
     def __init__(self):
-        self.dt = 1 / 400  # Control frequency reference
+        self.dt = 1 / 80  # Control frequency reference
         self.home_joints = HOME_JOINTS_RAD
         self.action_space = Box(low=-1, high=1, shape=(7,), dtype=np.float32)
         self.observation_space = Box(low=-np.inf, high=np.inf, shape=(37,), dtype=np.float32)
@@ -49,22 +49,26 @@ class ImitationLearning(gym.Env):
 
         # Read robot specs from config
         self._read_specs_from_config(os.path.abspath(
-            os.path.join(self.utils.find_project_root("DRL"), '../asset/params/uf850_suction.xml')))
+            os.path.join(self.utils.find_project_root("DRL"), '../../DRL/asset/params/uf850_suction.xml')))
 
     def seed(self, seed):
         print('set seed')
         self.np_random, _ = gym.utils.seeding.np_random(seed)
         return [seed]
 
-    def reset(self):
+    def reset(self, seed=None, options=None):
         """Reset environment and return initial observation."""
+        # Handle seeding (Gymnasium API)
+        if seed is not None:
+            self.np_random, _ = gym.utils.seeding.np_random(seed)
+        else:
+            self.np_random, _ = gym.utils.seeding.np_random(self.episode)
+
         print(f"Action Type: {self.action_type}")
         self._init_history()
         self.observation = None
         self.success_buffer = []
         self.sim_step = 0
-
-        self.seed(self.episode)
 
         # Move robot to home position
         print("Moving robot to home position...")
@@ -105,7 +109,7 @@ class ImitationLearning(gym.Env):
         self._save_data(np.zeros(7), "action")
         self.episode += 1
         print("RESET complete")
-        return self.observation
+        return self.observation, {}
 
     def step(self, action):
         """Execute action on real robot."""
@@ -168,17 +172,18 @@ class ImitationLearning(gym.Env):
         reward = -distance  # Negative distance as reward
 
         # Check termination
-        done = False
+        terminated = False
+        truncated = False
         success = False
         if self.action_type == 0:  # Touch action
             if contact:
-                done = True
+                terminated = True
                 success = True
                 print("Contact detected! Task complete.")
 
-        # Check max steps
+        # Check max steps (truncation)
         if len(self.history["action"]) >= self.max_steps:
-            done = True
+            truncated = True
 
         # Build task state vector
         self.task_state_vector = np.concatenate((
@@ -200,7 +205,7 @@ class ImitationLearning(gym.Env):
         self.success_buffer.append(success)
         info = {'log': self.success_buffer}
 
-        return self.observation, reward, done, info
+        return self.observation, reward, terminated, truncated, info
 
     def _read_state(self):
         """Read joint states from real robot."""

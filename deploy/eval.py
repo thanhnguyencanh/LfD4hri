@@ -24,7 +24,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", default=42, type=int)
     parser.add_argument("--log_path", default='reward_log', type=str)  # reward log path
     parser.add_argument("--checkpoint", default='ckpt', type=str)  # checkpoint log path
-    parser.add_argument("--max_episode", default=100, type=int)  # Max episode to run environment for
+    parser.add_argument("--max_episode", default=1, type=int)  # Max episode to run environment for
     parser.add_argument("--max_steps", default=100, type=int)  # max steps per episode
     parser.add_argument("--discount", default=0.99, type=float)  # Discount factor
     parser.add_argument("--tau", default=0.005, type=float)  # Target network update rate
@@ -82,7 +82,7 @@ if __name__ == "__main__":
             done = False
 
             print(f"\n=== Episode {curr_episode + 1}/{args.max_episode} ===")
-            state = env.reset()
+            state, _ = env.reset()
 
             while not done:
                 # Normalize state for policy
@@ -93,7 +93,8 @@ if __name__ == "__main__":
                 action = policy.choose_action(normalized_state, validation=True)
 
                 # Execute on real robot (handled by environment)
-                state, reward, done, info = env.step(action)
+                state, reward, terminated, truncated, info = env.step(action)
+                done = terminated or truncated
                 n_steps += 1
 
             # Track success

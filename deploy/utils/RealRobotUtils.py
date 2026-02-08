@@ -8,6 +8,16 @@ from xarm.wrapper import XArmAPI
 
 logger = logging.getLogger(__name__)
 
+# Home joint angles in degrees (converted from simulation home_joints in radians)
+HOME_JOINTS_DEG = [
+    math.degrees(0.0),      # -90.0
+    math.degrees(math.pi / 15),      # 12.0
+    math.degrees(-2 * math.pi / 9),   # -40.0
+    math.degrees(math.pi),            #  180.0
+    math.degrees(2 * math.pi / 7),    #  51.4
+    0.0,
+]
+
 CONF_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'robot.conf')
 parser = ConfigParser()
 parser.read(CONF_PATH)
