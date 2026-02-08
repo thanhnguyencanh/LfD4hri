@@ -10,7 +10,7 @@ import gym
 from utils.random_env import random_env
 from config import *
 from utils.utils import Utils
-from deploy.utils.RealRobotUtils import UF850
+from DRL.utils.RealRobotUtils import UF850
 from utils import camera
 
 # @markdown **Gym-style environment class:** this initializes a robot overlooking a workspace with objects.
@@ -54,7 +54,7 @@ class ImitationLearning(gym.Env):
             BOUNDS[2][-1] - BOUNDS[2][0]
         ])
         self._read_specs_from_config(os.path.abspath(
-            os.path.join(self.utils.find_project_root("drl_transportetNet"), '../asset/params/uf850_suction.xml')))
+            os.path.join(self.utils.find_project_root("DRL"), '../asset/params/uf850_suction.xml')))
 
     def seed(self, seed):
         print('set seed')
@@ -73,11 +73,11 @@ class ImitationLearning(gym.Env):
         # Add robot.
         self.plane = pybullet.loadURDF("plane.urdf", [0, 0, -0.001])
         self.robot_id = pybullet.loadURDF(os.path.abspath(
-            os.path.join(self.utils.find_project_root("drl_transportetNet"), "../asset/uf850/uf850.urdf"))
+            os.path.join(self.utils.find_project_root("DRL"), "../asset/uf850/uf850.urdf"))
                                           , [0, 0, 0], useFixedBase=True,
                                           flags=pybullet.URDF_USE_MATERIAL_COLORS_FROM_MTL)
         self.ghost_id = pybullet.loadURDF(os.path.abspath(
-            os.path.join(self.utils.find_project_root("drl_transportetNet"), "../asset/uf850/uf850.urdf"))
+            os.path.join(self.utils.find_project_root("DRL"), "../asset/uf850/uf850.urdf"))
                                           , [0, 0, -10])  # For forward kinematics.
         self.joint_ids = [pybullet.getJointInfo(self.robot_id, i) for i in range(pybullet.getNumJoints(self.robot_id))]
         self.joint_ids = [j[0] for j in self.joint_ids if j[2] == pybullet.JOINT_REVOLUTE]
@@ -126,7 +126,7 @@ class ImitationLearning(gym.Env):
                 else:
                     object_position[2] = 0
                     object_id = pybullet.loadURDF(os.path.abspath(
-                        os.path.join(self.utils.find_project_root("drl_transportetNet"),
+                        os.path.join(self.utils.find_project_root("DRL"),
                                      f"../asset/{object_type}/{object_type}.urdf")), object_position,
                                                   useFixedBase=1 if 'bowl' in object_type else 0)
                 pybullet.changeDynamics(object_id, -1,
