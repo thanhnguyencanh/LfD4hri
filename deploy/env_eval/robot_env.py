@@ -1,3 +1,4 @@
+import math
 import os
 import numpy as np
 from utils.suction import Suction
@@ -9,12 +10,13 @@ import gym
 from utils.random_env import random_env
 from config import *
 from utils.utils import Utils
+from deploy.utils.RealRobotUtils import UF850
 from utils import camera
 
 # @markdown **Gym-style environment class:** this initializes a robot overlooking a workspace with objects.
 class ImitationLearning(gym.Env):
     def __init__(self):
-        self.dt = 1/400  # smaller dt gets better accuracy -> physic update frequency
+        self.dt = 1 / 400  # smaller dt gets better accuracy -> physic update frequency
         # Configure and start PyBullet.
         pybullet.connect(pybullet.DIRECT)  # pybullet.GUI for local GUI.
         pybullet.configureDebugVisualizer(pybullet.COV_ENABLE_GUI, 0)
@@ -26,12 +28,15 @@ class ImitationLearning(gym.Env):
         pybullet.setPhysicsEngineParameter(contactERP=0.9, solverResidualThreshold=0)
         pybullet.setTimeStep(self.dt)
 
-        self.home_joints = (-np.pi / 2, -np.pi / 15, -2*np.pi / 9, np.pi, 2*np.pi / 7, 0)  # Initialize angles.
+        self.home_joints = (0, np.pi / 15, -2 * np.pi / 9, np.pi, 2 * np.pi / 7, 0)  # Initialize angles.
         self.ee_link_id = 6  # Link ID of UR5 end effector.
         self.suction = None
+        self.real_robot = UF850()
         self.action_space = Box(low=-1, high=1, shape=(7,), dtype=np.float32)  # rad/s
         self.observation_space = Box(low=-np.inf, high=np.inf, shape=(37,), dtype=np.float32)
         self.agent_cams = camera.Camera.CONFIG
+        self.chosen_coordination = np.array([0, 0, 0])
+        self.object_orientation = np.array([0, 0, 0])
         self.state = None
         self.action_type = None
         self.max_episode = None
@@ -48,7 +53,8 @@ class ImitationLearning(gym.Env):
             BOUNDS[1][-1] - BOUNDS[1][0],
             BOUNDS[2][-1] - BOUNDS[2][0]
         ])
-        self._read_specs_from_config(os.path.abspath(os.path.join(self.utils.find_project_root("drl_transportetNet"), '../asset/params/uf850_suction.xml')))
+        self._read_specs_from_config(os.path.abspath(
+            os.path.join(self.utils.find_project_root("drl_transportetNet"), '../asset/params/uf850_suction.xml')))
 
     def seed(self, seed):
         print('set seed')
@@ -66,9 +72,12 @@ class ImitationLearning(gym.Env):
 
         # Add robot.
         self.plane = pybullet.loadURDF("plane.urdf", [0, 0, -0.001])
-        self.robot_id = pybullet.loadURDF(os.path.abspath(os.path.join(self.utils.find_project_root("drl_transportetNet"), "../asset/uf850/uf850.urdf"))
-                                          , [0, 0, 0], useFixedBase=True, flags=pybullet.URDF_USE_MATERIAL_COLORS_FROM_MTL)
-        self.ghost_id = pybullet.loadURDF(os.path.abspath(os.path.join(self.utils.find_project_root("drl_transportetNet"), "../asset/uf850/uf850.urdf"))
+        self.robot_id = pybullet.loadURDF(os.path.abspath(
+            os.path.join(self.utils.find_project_root("drl_transportetNet"), "../asset/uf850/uf850.urdf"))
+                                          , [0, 0, 0], useFixedBase=True,
+                                          flags=pybullet.URDF_USE_MATERIAL_COLORS_FROM_MTL)
+        self.ghost_id = pybullet.loadURDF(os.path.abspath(
+            os.path.join(self.utils.find_project_root("drl_transportetNet"), "../asset/uf850/uf850.urdf"))
                                           , [0, 0, -10])  # For forward kinematics.
         self.joint_ids = [pybullet.getJointInfo(self.robot_id, i) for i in range(pybullet.getNumJoints(self.robot_id))]
         self.joint_ids = [j[0] for j in self.joint_ids if j[2] == pybullet.JOINT_REVOLUTE]
@@ -77,16 +86,16 @@ class ImitationLearning(gym.Env):
         for i in range(len(self.joint_ids)):
             pybullet.resetJointState(self.robot_id, self.joint_ids[i], self.home_joints[i])
         # Add workspace.
-        plane_shape = pybullet.createCollisionShape(pybullet.GEOM_BOX, halfExtents=[0.45, 0.35, 0.003])
-        plane_visual = pybullet.createVisualShape(pybullet.GEOM_BOX, halfExtents=[0.45, 0.35, 0.003])
-        plane_id = pybullet.createMultiBody(0, plane_shape, plane_visual, basePosition=[0, -0.5, 0])
+        plane_shape = pybullet.createCollisionShape(pybullet.GEOM_BOX, halfExtents=[0.35, 0.4, 0.003])
+        plane_visual = pybullet.createVisualShape(pybullet.GEOM_BOX, halfExtents=[0.35, 0.4, 0.003])
+        plane_id = pybullet.createMultiBody(0, plane_shape, plane_visual, basePosition=[0.5, 0, 0])
         pybullet.changeVisualShape(plane_id, -1, rgbaColor=[0.2, 0.2, 0.2, 1.0])
 
         # Load objects according to config.
         obj_names = list(self.config['pick']) + list(self.config['place'])
         obj_xyz = np.zeros((0, 3))
         for obj_name in obj_names:
-            if obj_name not in list(fixed_destination.keys()):
+            if obj_name not in list(FIXED_DESTINATION.keys()):
                 # Get random position 15cm+ from other objects.
                 while True:
                     rand_x = self.np_random.uniform(BOUNDS[0, 0], BOUNDS[0, 1])
@@ -107,14 +116,18 @@ class ImitationLearning(gym.Env):
                 if object_type == 'block':
                     object_shape = pybullet.createCollisionShape(pybullet.GEOM_BOX, halfExtents=[0.02, 0.02, 0.02])
                     object_visual = pybullet.createVisualShape(pybullet.GEOM_BOX, halfExtents=[0.02, 0.02, 0.02])
-                    object_id = pybullet.createMultiBody(0.01, object_shape, object_visual, basePosition=object_position)
+                    object_id = pybullet.createMultiBody(0.01, object_shape, object_visual,
+                                                         basePosition=object_position)
                 elif object_type == 'egg':
                     object_shape = pybullet.createCollisionShape(pybullet.GEOM_SPHERE, 0.03, [1.0, 1.0, 1.4])
-                    object_visual = pybullet.createVisualShape(pybullet.GEOM_SPHERE, 0.03, [1.0, 1.0, 1.4] )
-                    object_id = pybullet.createMultiBody(0.01, object_shape, object_visual, basePosition=object_position)
+                    object_visual = pybullet.createVisualShape(pybullet.GEOM_SPHERE, 0.03, [1.0, 1.0, 1.4])
+                    object_id = pybullet.createMultiBody(0.01, object_shape, object_visual,
+                                                         basePosition=object_position)
                 else:
                     object_position[2] = 0
-                    object_id = pybullet.loadURDF(os.path.abspath(os.path.join(self.utils.find_project_root("drl_transportetNet"), f"../asset/{object_type}/{object_type}.urdf")), object_position,
+                    object_id = pybullet.loadURDF(os.path.abspath(
+                        os.path.join(self.utils.find_project_root("drl_transportetNet"),
+                                     f"../asset/{object_type}/{object_type}.urdf")), object_position,
                                                   useFixedBase=1 if 'bowl' in object_type else 0)
                 pybullet.changeDynamics(object_id, -1,
                                         lateralFriction=1.0,
@@ -165,31 +178,38 @@ class ImitationLearning(gym.Env):
         object1 = config["pick"][self.np_random.randint(0, len(config["pick"]))]
         object2 = config["place"][self.np_random.randint(0, len(config["place"]))]
         # providing instruction
-        instruction = instruction.format(object1, object2) if instruction.count("{}") == 2 else instruction.format(object1)
-        self.info = [action_state[instruction.split(" ")[0]], object1, object2]
+        instruction = instruction.format(object1, object2) if instruction.count("{}") == 2 else instruction.format(
+            object1)
+        self.info = [ACTION_STATE[instruction.split(" ")[0]], object1, object2]
         # id assignment
         self.pick_object_id = self.obj_name_to_id[self.info[1]]
-        if self.info[2] not in fixed_destination.keys():
+        if self.info[2] not in FIXED_DESTINATION.keys():
             self.place_object_id = self.obj_name_to_id[self.info[2]]
-        if self.info[2] in fixed_destination.keys():
-            self.place = np.array(fixed_destination[self.info[2]])
+        if self.info[2] in FIXED_DESTINATION.keys():
+            self.place = np.array(FIXED_DESTINATION[self.info[2]])
         else:
             self.place = self._read_info(self.place_object_id)[:3]  # ori shape: [3,]
 
-        self.target = self._coor(self._read_info(self.pick_object_id)[:3], self.place, self.info[0])  # target determination
-        self.ee_obj = np.float32(pybullet.getLinkState(self.suction.body, 0)[0]) - self._read_info(self.pick_object_id)[:3]  # ee and obj relative distance
-        self.obj_target = self._read_info(self.pick_object_id)[7:10] - self.target  # obj and target relative distance
+        # self.target = self._coor(self._read_info(self.pick_object_id)[:3], self.place, self.info[0])  # target determination
+        # self.ee_obj = np.float32(pybullet.getLinkState(self.suction.body, 0)[0]) - self._read_info(self.pick_object_id)[:3]  # ee and obj relative distance
+        # self.obj_target = self._read_info(self.pick_object_id)[7:10] - self.target  # obj and target relative distance
 
-        self.task_state_vector = np.concatenate((self.ee_obj/self.workspace_bound,
-                                                self._read_info(self.pick_object_id)[3:7],
-                                                self.obj_target/self.workspace_bound,
-                                                self._read_info(self.pick_object_id)[:3]/self.workspace_bound,
-                                                self.target/self.workspace_bound,
-                                            ))  # shape: [16,]
+        self.target = self.chosen_coordination + np.array(
+            [0, 0, 0])  # (0, 0, 0) if current action is touch else (0, 0, 0.15)
+        self.ee_obj = self._get_ee_coordination() - self.chosen_coordination  # ee and obj relative distance
+        self.obj_target = (self.chosen_coordination - np.array(
+            [1, 1, self.chosen_coordination[-1]])) - self.target  # obj and target relative distance
+
+        self.task_state_vector = np.concatenate((self.ee_obj / self.workspace_bound,
+                                                 self._read_info(self.pick_object_id)[3:7],
+                                                 self.obj_target / self.workspace_bound,
+                                                 self._read_info(self.pick_object_id)[:3] / self.workspace_bound,
+                                                 self.target / self.workspace_bound,
+                                                 ))  # shape: [16,]
 
         self.task_state_vector += self._random_noise(self.task_state_vector, 0.005)  # randomize
 
-        self.reward_func = Reward(dt=self.dt*self.frame, env=self)
+        self.reward_func = Reward(dt=self.dt * self.frame, env=self)
         self.observation = np.concatenate((self.state,  # joint position + joint velocity
                                            np.zeros(2),  # suction state, contact state
                                            self.task_state_vector,
@@ -198,7 +218,7 @@ class ImitationLearning(gym.Env):
         self._save_data(np.zeros(7), "action")  # t-2 and t-1 action
         self._save_data(np.zeros(7), "action")  # t-2 and t-1 action
         self.episode += 1
-
+        print("RESET")
         return self.observation
 
     def _do_simulation(self):
@@ -210,13 +230,16 @@ class ImitationLearning(gym.Env):
                 pybullet.stepSimulation()
 
     def step(self, action):
+        print("----------")
+        print("policy output: ", action)
+        print("----------")
         """
         robot execution function
         rvaluate actions through its subsequent sub-actions
         """
         self._read_state()
-        self._save_data(np.float32(pybullet.getLinkState(self.suction.body, 0)[0]), "ee_history") # shape: [3,])
-        self._save_data(self._read_info(self.pick_object_id), "obj_history")
+        self._save_data(np.float32(pybullet.getLinkState(self.suction.body, 0)[0]), "ee_history")  # shape: [3,])
+        self._save_data(self.object_orientation, "obj_history")
         self._save_data(action, "action")  # save previous predicted actions and angles
 
         arm_joint_ctrl = np.clip(action, -1.0, 1.0)
@@ -225,6 +248,10 @@ class ImitationLearning(gym.Env):
 
         self._save_data(ctrl_feasible, "joint")
         # Apply position control once
+        print("--------")
+        print("joint angle (rad):  ", ctrl_feasible[:-1])
+        print("joint angle (deg): ", self._convert_to_degrees(ctrl_feasible[:-1]))
+        print("--------")
         self._servoj(ctrl_feasible[:-1])
         self._do_simulation()
         self._read_state()  # Final state after control
@@ -235,8 +262,9 @@ class ImitationLearning(gym.Env):
         self._do_simulation()
 
         # Get current data
-        self._save_data([suction_signal, self._read_contact(self.info[0])], "contact_history") # suction signal and contacting signal
-        self._save_data(np.float32(pybullet.getLinkState(self.suction.body, 0)[0]), "ee_history")  # shape: [3,] store the old ee position
+        self._save_data([suction_signal, self._check_contact()],
+                        "contact_history")  # suction signal and contacting signal
+        self._save_data(self._get_ee_coordination(), "ee_history")  # shape: [3,] store the old ee position
         self._save_data(self._read_info(self.pick_object_id), "obj_history")  # shape: [3,] store new movement position
 
         if self.place_object_id is not None:
@@ -244,40 +272,46 @@ class ImitationLearning(gym.Env):
                 self._read_info(self.place_object_id)
             )  # shape: [3,] store new movement position
 
-        self.ee_obj = np.float32(pybullet.getLinkState(self.suction.body, 0)[0]) - self._read_info(self.pick_object_id)[:3]
-        self.obj_target = self._read_info(self.pick_object_id)[7:10] - self.target
+        # self.ee_obj = np.float32(pybullet.getLinkState(self.suction.body, 0)[0]) - self._read_info(self.pick_object_id)[:3]
+        # self.obj_target = self._read_info(self.pick_object_id)[7:10] - self.target\
+
+        self.ee_obj = self._get_ee_coordination() - self.chosen_coordination
+        self.obj_target = (self.chosen_coordination - np.array([1, 1, self.chosen_coordination[-1]])) - self.target
 
         # Compute reward
         reward, done, success = self.reward_func.get_reward()
 
-        self.task_state_vector = np.concatenate((self.ee_obj/self.workspace_bound,
+        self.task_state_vector = np.concatenate((self.ee_obj / self.workspace_bound,
                                                  self.history["obj_history"][0][3:7],
-                                                 self.obj_target/self.workspace_bound,
-                                                 self._read_info(self.pick_object_id)[:3]/self.workspace_bound,
-                                                 self.target/self.workspace_bound,
-                                                ))
+                                                 self.obj_target / self.workspace_bound,
+                                                 self._read_info(self.pick_object_id)[:3] / self.workspace_bound,
+                                                 self.target / self.workspace_bound,
+                                                 ))
         self.task_state_vector += self._random_noise(self.task_state_vector, 0.005)  # randomize
         # Update next state
         self.observation = np.concatenate((self.state,
                                            [suction_signal,
-                                            self._read_contact(self.info[0])],
+                                            self._check_contact()],
                                            self.task_state_vector,
                                            self.history["action"][-1],
                                            ))  # 37D dimensional vector
         self.success_buffer.append(success)
         info = {'log': self.success_buffer}  # task successful logger
-        if (self.action_type == 3 or self.action_type == 0) and self.eval:
-            if success:
-                self.stable_factor += 1
-                if self.stable_factor == 2:
-                    self.suction.release()
-                    self._do_simulation()
-                    done = True
-                    self._do_simulation()
-            else:
-                self.stable_factor = 0
+        if self.action_type == 0:
+            if self._check_contact():
+                done = True
 
         return self.observation, reward, done, info
+
+    def _convert_to_degrees(self, rad_array):
+        rad_array = np.asarray(rad_array)
+        return np.degrees(rad_array)
+
+    def _check_contact(self):
+        return self.descend_until_contact()
+
+    def _get_ee_coordination(self):
+        return self.real_robot.get_position[:3]
 
     def _save_data(self, data, attr: str):
         self.history[attr].append(data)
@@ -332,16 +366,17 @@ class ImitationLearning(gym.Env):
 
     def _read_state(self):
         '''Update joint states information'''
-        jointStates = pybullet.getJointStates(self.robot_id, self.joint_ids)  # (position, velocity, reaction_forces, applied_joint_motor_torque)
+        jointStates = pybullet.getJointStates(self.robot_id,
+                                              self.joint_ids)  # (position, velocity, reaction_forces, applied_joint_motor_torque)
 
         jointPoses = np.array([x[0] for x in jointStates])
         jointVelocity = np.array([x[1] for x in jointStates])
         # jointTorque = [x[3] for x in jointStates]
         jointPoses += (
-                self.np_random.uniform(low=-0.005, high=0.005, size=jointPoses.shape)
+            self.np_random.uniform(low=-0.005, high=0.005, size=jointPoses.shape)
         )
         jointVelocity += (
-                self.np_random.uniform(low=-0.05, high=0.05, size=jointVelocity.shape)
+            self.np_random.uniform(low=-0.05, high=0.05, size=jointVelocity.shape)
         )
         self.state = np.hstack((np.array(jointPoses).copy(), np.array(jointVelocity).copy()))
 

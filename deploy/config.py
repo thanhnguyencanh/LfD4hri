@@ -14,7 +14,7 @@ alpha = 0.5
 #@markdown **Global constants:** pick and place objects, colors, workspace bounds.
 PIXEL_SIZE = 0.00267857 # The size of each pixel in real-world units (such as meters)
 
-BOUNDS = np.float32([[-0.25, 0.25], [-0.75, -0.25], [0, 0.15]])  # (X, Y, Z) (width, depth, height)
+BOUNDS = np.float32([[0.25, 0.75], [-0.25, 0.25], [0, 0.15]])  # (X, Y, Z) (width, depth, height)
 
 JOINT_LIMITS = [[- 2 * np.pi, 2 * np.pi], [- 2 * np.pi, 2 * np.pi], [-np.pi, np.pi],
 				[- 2 * np.pi, 2 * np.pi], [- 2 * np.pi, 2 * np.pi], [- 2 * np.pi, 2 * np.pi]]
@@ -88,29 +88,28 @@ PLACE_TARGETS = {
 	'brown bowl': None,
 	'gray bowl': None,
 
-	'top left corner':     (-0.25, -0.25, 0),
-	'top side':            (0,    -0.25, 0),
-	'top right corner':    (0.25,  -0.25, 0),
-	'left side':           (-0.25, -0.5, 0),
-	'middle':              (0,    -0.5, 0),
-	'right side':          (0.25,  -0.5, 0),
-	'bottom left corner':  (-0.25, -0.75, 0),
-	'bottom side':         (0,    -0.75, 0),
-	'bottom right corner': (0.25,  -0.75, 0),
+	'top left corner':     (0.25, -0.25, 0),
+	'top side':            (0.25,   0, 0),
+	'top right corner':    (0.25,  0.25, 0),
+	'left side':           (0.5, -0.25, 0),
+	'middle':              (0.5,    0, 0),
+	'right side':          (0.5,  0.25, 0),
+	'bottom left corner':  (0.75, -0.25, 0),
+	'bottom side':         (0.75,  0, 0),
+	'bottom right corner': (0.75,  0.25, 0),
 }
 
 FIXED_DESTINATION = {
-	'top left corner':     (-0.25, -0.25, 0),
-	'top side':            (0,    -0.25, 0),
-	'top right corner':    (0.25,  -0.25, 0),
-	'left side':           (-0.25, -0.5, 0),
-	'middle':              (0,    -0.5, 0),
-	'right side':          (0.25,  -0.75, 0),
-	'bottom left corner':  (-0.25, -0.75, 0),
-	'bottom side':         (0,    -0.75, 0),
-	'bottom right corner': (0.25,  -0.75, 0),
+    'top left corner':     (0.25, -0.25, 0),
+    'top side':            (0.25,   0, 0),
+    'top right corner':    (0.25,  0.25, 0),
+    'left side':           (0.5, -0.25, 0),
+    'middle':              (0.5,    0, 0),
+    'right side':          (0.5,  0.25, 0),
+    'bottom left corner':  (0.75, -0.25, 0),
+    'bottom side':         (0.75,  0, 0),
+    'bottom right corner': (0.75,  0.25, 0),
 }
-
 
 INSTRUCTION_FORM = [
 	"Touch the {}",
