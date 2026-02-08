@@ -22,7 +22,7 @@ class ImitationLearning(gym.Env):
         self.observation_space = Box(low=-np.inf, high=np.inf, shape=(37,), dtype=np.float32)
 
         # Target coordination for the task
-        self.chosen_coordination = np.array([0, 0, 0])
+        self.chosen_coordination = np.array([0.5512, 0.0555, -0.0071])
         self.object_orientation = np.array([0, 1, 0, 0])
         self.state = None
         self.action_type = None
