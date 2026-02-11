@@ -1,12 +1,10 @@
-# Human-to-Robot Interaction: Learning from Video Demonstration for Robot Imitation
+# Learning to Manipulate by Watching Humans: A Decoupled Vision-Language-Driven Imitation Framework
 
 ### V1.0, December 22th, 2025
-**Authors:** [Thanh Nguyen Canh](https://thanhnguyencanh.github.io/), Thanh Tuan Tran, [Xiem HoangVan](https://sites.google.com/site/xiemhoang/), [Nak Young Chong](https://www.jaist.ac.jp/robot/).
+**Authors:** [Thanh Nguyen Canh](https://thanhnguyencanh.github.io/), Thanh Tuan Tran, Haolan Zhang, Ziyan Gao, [Xiem HoangVan](https://sites.google.com/site/xiemhoang/), [Nak Young Chong](https://www.jaist.ac.jp/robot/).
 
 
 LfD4hri is a novel “Human-to-Robot” imitation learning pipeline that enables robots to acquire manipulation skills directly from unstruc- tured video demonstrations, inspired by the human ability to learn by “watching” and “imitating”
-
-
 
 ## 1. Project Structure
 
@@ -21,6 +19,7 @@ LfD4hri is a novel “Human-to-Robot” imitation learning pipeline that enables
     │
     ├── LLaVA/                      VLMs for object identification
     ├── video_keyframes_detector/   Video keyframe extraction
+    ├── deploy/                     Deployment scripts and configurations
     ├── mmaction2/                  Action recognition framework
     ├── utils/                      Utility functions (overlap, blur, ...)
     └── demo.py                     Video Understanding main code
@@ -65,7 +64,11 @@ Note: Select only one value for each argument from the options listed above.
 Starting a new training will automatically reset all existing checkpoints, logs, and related training artifacts.
 
 # 3. Building and examples
-
+For deployment, we can use **UF850**
+```
+cd deploy
+python3 eval.py --action {0,1}
+```
 
 # 4. License
 
@@ -74,11 +77,11 @@ Starting a new training will automatically reset all existing checkpoints, logs,
 If you use this work in an academic work, please cite:
   
     @article{canh2026human,
-      title={Human-to-Robot Interaction: Learning from Video Demonstration for Robot Imitation},
-      author={Thanh Nguyen Canh, Thanh Tuan Tran, Xiem HoangVan, and Nak Young Chong},
+      title={Learning to Manipulate by Watching Humans: A Decoupled Vision-Language-Driven Imitation Framework},
+      author={Thanh Nguyen Canh, Thanh Tuan Tran, Haolan Zhang, Ziyan Gao, Xiem HoangVan, and Nak Young Chong},
       journal={}, 
       volume={},
       number={},
       pages={},
-      year={2025}
+      year={2026}
      }
