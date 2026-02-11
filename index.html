@@ -138,7 +138,7 @@
 <html>
 
 <head>
-    <title> Human-to-Robot Interaction: Learning from Video Demonstration for Robot Imitation</title>
+    <title> Learning to Manipulate by Watching Humans: A Decoupled Vision-Language-Driven Imitation Framework</title>
     <meta property="og:title" content="LfD4hri" />
     <meta property="og:image" content="" />
     <meta property="og:url" content="" />
@@ -156,8 +156,7 @@
 <body>
     <br>
     <center>
-        <span style="font-size:42px"> Human-to-Robot Interaction: Learning from Video Demonstration for Robot
-            Imitation</span>
+        <span style="font-size:42px"> Learning to Manipulate by Watching Humans: A Decoupled Vision-Language-Driven Imitation Framework</span>
 
     </center>
 
@@ -166,7 +165,8 @@
         <tr>
             <td align=center width=150px>
                 <center>
-                    <span style="font-size:20px"><a href="https://thanhnguyencanh.github.io/">Thanh Nguyen Canh</a></span>
+                    <span style="font-size:20px"><a href="https://thanhnguyencanh.github.io/">Thanh Nguyen
+                            Canh</a></span>
                 </center>
             </td>
 
@@ -214,8 +214,7 @@
             </td>
             <td align=center width=100px>
                 <center>
-                    <span style="font-size:20px"><a
-                            href="https://github.com/thanhnguyencanh/LfD4hri">[Code]</a></span>
+                    <span style="font-size:20px"><a href="https://github.com/thanhnguyencanh/LfD4hri">[Code]</a></span>
                 </center>
             </td>
 
@@ -226,22 +225,24 @@
 
 
     <br>
-    Robotic manipulation through learning from demonstration (LfD) holds the promise of enabling robots to acquire
-    various actions efficiently. However, existing robotics imitation learning methods typically rely on structured
-    observation-action pairs, requiring costly and laborious data collection, and struggle to generalize manipulation
-    skills from unstructured, real-world videos. To address these limitations, we propose a novel ``Human-to-Robot''
-    imitation learning pipeline that enables robots to acquire manipulation skills directly from unstructured video
-    demonstrations, inspired by the human ability to learn by ``\textit{watching}'' and ``\textit{imitating}''. Our key
-    innovation is a modular framework that decouples the learning process into two distinct stages: (1) Understanding
-    the demonstration through video, and (2) Robot Immitation to learn the demonstrated manipulations. In the first
-    stage, we use a combination of Convolutional Neural Networks (CNNs) and Vision-Language Models (VLMs) to extract
-    features related to essential commonsense properties, generating structured, caption-like commands by separately
-    identifying interacted objects and actions. In the second stage, these structured commands guide a robot learning
-    system that is built upon a Deep Reinforcement Learning (DRL) algorithm to master the demonstrated task. We
-    validated our approach in PyBullet simulation environments, demonstrating that our UR5 robotic arm can robustly and
-    adaptively perform a diverse set of manipulation tasks learned directly from video. Our results show marked
-    superiority over competitive baselines, achieving $85.9\%$ success rate on standard object sets and a 71.3%
-    success rate on novel objects, indicating significantly improved generalization.
+    Learning from Demonstration (LfD) offers a promising paradigm for robot skill acquisition. Recent approaches attempt
+    to extract manipulation commands directly from video demonstrations, yet face two critical challenges: (1) general
+    video captioning models prioritize global scene features over task-relevant objects, producing descriptions
+    unsuitable for precise robotic execution, and (2) end-to-end architectures coupling visual understanding with policy
+    learning require extensive paired datasets and struggle to generalize across objects and scenarios. To address these
+    limitations, we propose a novel ``Human-to-Robot'' imitation learning pipeline that enables robots to acquire
+    manipulation skills directly from unstructured video demonstrations, inspired by the human ability to learn by
+    ``\textit{watching}'' and ``\textit{imitating}''. Our key innovation is a modular framework that decouples the
+    learning process into two distinct stages: (1) Video Understanding, which combines Temporal Shift Modules (TSM) with
+    Vision-Language Models (VLMs) to extract actions and identify interacted objects, and (2) Robot Imitation, which
+    employs TD3-based deep reinforcement learning to execute the demonstrated manipulations. We validated our approach
+    in PyBullet simulation environments using a UR5e robotic arm across four fundamental actions: reach, pick, move, and
+    put. For video understanding, our method achieves $89.97\%$ action classification accuracy and attains BLEU-4 scores
+    of $0.351$ on standard objects and $0.265$ on novel objects, representing improvements of $76.4\%$ and $128.4\%$
+    over the best baseline, respectively. For robot manipulation, our framework achieves an average success rate of
+    $87.5\%$ across all actions, with $100\%$ success on reaching tasks and up to $90\%$ on complex pick-and-place
+    operations. These results demonstrate strong generalization capability, particularly for previously unseen object
+    categories.
     <br><br>
 
     <hr>
@@ -255,8 +256,8 @@
             <!-- <a href="http://arxiv.org/pdf/1603.08511.pdf"> -->
             <!-- <td><a href="#"><img class="layered-paper-big" style="height:175px" src="./resources/images/paper.png"/></a></td> -->
             <td><a href=""><img style="height:400px" src="docs/images/thumbnails.png" /></a></td>
-            <td><span style="font-size:14pt">Thanh Nguyen Canh, Thanh Tuan Tran, Xiem HoangVan, Nak Young Chong<br><br>
-                    Human-to-Robot Interaction: Learning from Video Demonstration for Robot Imitation<br><br>
+            <td><span style="font-size:14pt">Thanh Nguyen Canh, Thanh Tuan Tran, Haolan Zhang, Ziyan Gao, Xiem HoangVan, Nak Young Chong<br><br>
+                    Learning to Manipulate by Watching Humans: A Decoupled Vision-Language-Driven Imitation Framework<br><br>
                     2026.<br><br>
                     <a href="">[pdf]</a> &nbsp; &nbsp;
                     <!--    <a href="./resources/bibtex.txt">[Bibtex]</a> -->
